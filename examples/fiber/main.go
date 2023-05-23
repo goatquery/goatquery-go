@@ -121,7 +121,7 @@ func getUsers(c *fiber.Ctx) error {
 		return c.Status(400).JSON(goatquery.QueryErrorResponse{Status: 400, Message: err.Error()})
 	}
 
-	response := goatquery.BuildResponseFastHttp(users, query, c.Response(), count)
+	response := goatquery.BuildPagedResponse(users, query, count)
 
 	return c.JSON(response)
 }

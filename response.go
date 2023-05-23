@@ -1,31 +1,11 @@
 package goatquery
 
 import (
-	"net/http"
 	"reflect"
-	"strconv"
 	"strings"
-
-	"github.com/valyala/fasthttp"
 )
 
-func BuildResponseFastHttp[T any](res []T, query Query, response *fasthttp.Response, totalCount *int64) PagedResponse[map[string]interface{}] {
-	if totalCount != nil {
-		response.Header.Set("x-total-count", strconv.Itoa(int(*totalCount)))
-	}
-
-	return BuildPagedResponse(res, query)
-}
-
-func BuildResponse[T any](res []T, query Query, response http.ResponseWriter, totalCount *int64) PagedResponse[map[string]interface{}] {
-	if totalCount != nil {
-		response.Header().Set("x-total-count", strconv.Itoa(int(*totalCount)))
-	}
-
-	return BuildPagedResponse(res, query)
-}
-
-func BuildPagedResponse[T any](res []T, query Query) PagedResponse[map[string]interface{}] {
+func BuildPagedResponse[T any](res []T, query Query, totalCount *int64) PagedResponse[map[string]interface{}] {
 	result := make([]map[string]interface{}, len(res))
 
 	selectedProperties := strings.Split(strings.TrimSpace(query.Select), ",")
@@ -65,5 +45,5 @@ func BuildPagedResponse[T any](res []T, query Query) PagedResponse[map[string]in
 		result[i] = newObj
 	}
 
-	return PagedResponse[map[string]interface{}]{Value: result}
+	return PagedResponse[map[string]interface{}]{Value: result, Count: totalCount}
 }

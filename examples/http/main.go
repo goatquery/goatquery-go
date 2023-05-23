@@ -105,7 +105,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := goatquery.BuildResponse(users, *query, w, count)
+	response := goatquery.BuildPagedResponse(users, *query, count)
 
 	json, err := json.Marshal(response)
 	if err != nil {

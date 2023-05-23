@@ -1,7 +1,8 @@
 package goatquery
 
 type PagedResponse[T any] struct {
-	Value []T `json:"value"`
+	Count *int64 `json:"count,omitempty"`
+	Value []T    `json:"value"`
 }
 
 type QueryErrorResponse struct {

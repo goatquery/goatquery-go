@@ -15,20 +15,37 @@ import (
 )
 
 type User struct {
-	Id        uuid.UUID `json:"id"`
-	Firstname string    `json:"firstname"`
-	Lastname  string    `json:"lastname"`
-	Email     string    `json:"email"`
-	AvatarUrl string    `json:"avatarUrl"`
-	IsDeleted bool      `json:"-"`
+	Id          uuid.UUID `json:"id"`
+	Firstname   string    `json:"firstname"`
+	Lastname    string    `json:"lastname"`
+	Email       string    `json:"email"`
+	AvatarUrl   string    `json:"avatarUrl"`
+	IsDeleted   bool      `json:"-"`
+	AddressId   uuid.UUID
+	Address     Address          `json:"addresses"`
+	Permissions []UserPermission `json:"permissions"`
+}
+
+type UserPermission struct {
+	Id     uuid.UUID `json:"id"`
+	Name   string    `json:"name"`
+	UserId uuid.UUID `json:"-"`
+}
+
+type Address struct {
+	Id       uuid.UUID `json:"id"`
+	Postcode string    `json:"postcode"`
 }
 
 type UserDto struct {
-	Id        uuid.UUID `json:"id"`
-	Firstname string    `json:"firstname"`
-	Lastname  string    `json:"lastname"`
-	Email     string    `json:"email"`
-	AvatarUrl string    `json:"-"`
+	Id          uuid.UUID `json:"id"`
+	Firstname   string    `json:"firstname"`
+	Lastname    string    `json:"lastname"`
+	Email       string    `json:"email"`
+	AvatarUrl   string    `json:"-"`
+	AddressId   uuid.UUID
+	Address     Address          `json:"address"`
+	Permissions []UserPermission `json:"permissions" gorm:"foreignKey:UserId"`
 }
 
 var DB *gorm.DB
@@ -43,7 +60,7 @@ func main() {
 	}
 	DB = db
 
-	db.AutoMigrate(&User{})
+	db.AutoMigrate(&UserPermission{}, &Address{}, &User{})
 
 	gofakeit.Seed(123)
 
@@ -52,14 +69,17 @@ func main() {
 
 		for i := 1; i < 1_000; i++ {
 			person := gofakeit.Person()
+			userId := uuid.New()
 
 			item := User{
-				Id:        uuid.New(),
-				Firstname: person.FirstName,
-				Lastname:  person.LastName,
-				Email:     person.Contact.Email,
-				AvatarUrl: gofakeit.ImageURL(64, 64),
-				IsDeleted: gofakeit.Bool(),
+				Id:          userId,
+				Firstname:   person.FirstName,
+				Lastname:    person.LastName,
+				Email:       person.Contact.Email,
+				AvatarUrl:   gofakeit.ImageURL(64, 64),
+				IsDeleted:   gofakeit.Bool(),
+				Address:     Address{Id: uuid.New(), Postcode: person.Address.Zip},
+				Permissions: []UserPermission{{Id: uuid.New(), UserId: userId, Name: gofakeit.LoremIpsumWord()}},
 			}
 
 			items = append(items, item)
@@ -107,7 +127,7 @@ func getUsers(c *fiber.Ctx) error {
 }
 
 func GetAllUsers(db *gorm.DB) *gorm.DB {
-	return db.Model(&User{}).Where("is_deleted <> ?", true)
+	return db.Model(&User{}).Where("is_deleted <> ?", true).Preload("Address").Preload("Permissions")
 }
 
 func UserDtoSearch(db *gorm.DB, searchTerm string) *gorm.DB {

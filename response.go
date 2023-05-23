@@ -42,7 +42,7 @@ func BuildPagedResponse[T any](res []T, query Query) PagedResponse[map[string]in
 				field, _ := v.Type().FieldByName(property)
 				name := field.Tag.Get("json")
 
-				if name != "-" {
+				if name != "" && name != "-" {
 					// '-' in the json tag means to not return that property
 					newObj[name] = v.FieldByName(property).String()
 				}
@@ -55,7 +55,7 @@ func BuildPagedResponse[T any](res []T, query Query) PagedResponse[map[string]in
 
 				name := field.Tag.Get("json")
 
-				if name != "-" {
+				if name != "" && name != "-" {
 					// '-' in the json tag means to not return that property
 					newObj[name] = value
 				}

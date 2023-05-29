@@ -80,6 +80,22 @@ func Test_QueryWithTopGreaterThanMaxTop(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func Test_QueryWithNilTopUsesMaxTop(t *testing.T) {
+	maxTop := 2
+	query := Query{}
+
+	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		res, _, _ := Apply(tx.Model(&User{}), query, &maxTop, nil)
+		return res.Find(&[]User{})
+	})
+
+	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&User{}).Limit(maxTop).Find(&[]User{})
+	})
+
+	assert.Equal(t, expectedSql, sql)
+}
+
 // Skip
 
 func Test_QueryWithSkip(t *testing.T) {

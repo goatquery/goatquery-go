@@ -12,6 +12,11 @@ func Apply(db *gorm.DB, query Query, maxTop *int, searchFunc func(db *gorm.DB, s
 		return nil, nil, fmt.Errorf("The value supplied for the query parameter 'Top' was greater than the maximum top allowed for this resource")
 	}
 
+	if maxTop != nil && query.Top == 0 {
+		// If no top query was provided, set to max top.
+		query.Top = *maxTop
+	}
+
 	// Filter
 	if query.Filter != "" {
 		filters := splitString(query.Filter)

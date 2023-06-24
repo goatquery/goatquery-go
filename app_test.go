@@ -13,8 +13,13 @@ import (
 
 var DB *gorm.DB
 
+type Base struct {
+	Id uint `json:"id"`
+}
+
 type User struct {
-	Id        uint   `json:"id"`
+	Base
+
 	Firstname string `json:"firstname"`
 	Lastname  string `json:"lastname"`
 	Email     string `json:"email"`

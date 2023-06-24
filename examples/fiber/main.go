@@ -14,36 +14,44 @@ import (
 	"goatquery"
 )
 
+type Base struct {
+	Id uuid.UUID `json:"id"`
+}
+
 type User struct {
-	Id          uuid.UUID `json:"id"`
-	Firstname   string    `json:"firstname"`
-	Lastname    string    `json:"lastname"`
-	Email       string    `json:"email"`
-	AvatarUrl   string    `json:"avatarUrl"`
-	IsDeleted   bool      `json:"-"`
-	AddressId   uuid.UUID
+	Base
+
+	Firstname   string           `json:"firstname"`
+	Lastname    string           `json:"lastname"`
+	Email       string           `json:"email"`
+	AvatarUrl   string           `json:"avatarUrl"`
+	IsDeleted   bool             `json:"-"`
+	AddressId   uuid.UUID        `json:"-"`
 	Address     Address          `json:"addresses"`
 	Permissions []UserPermission `json:"permissions"`
 }
 
 type UserPermission struct {
-	Id     uuid.UUID `json:"id"`
+	Base
+
 	Name   string    `json:"name"`
 	UserId uuid.UUID `json:"-"`
 }
 
 type Address struct {
-	Id       uuid.UUID `json:"id"`
-	Postcode string    `json:"postcode"`
+	Base
+
+	Postcode string `json:"postcode"`
 }
 
 type UserDto struct {
-	Id          uuid.UUID `json:"id"`
-	Firstname   string    `json:"firstname"`
-	Lastname    string    `json:"lastname"`
-	Email       string    `json:"email"`
-	AvatarUrl   string    `json:"-"`
-	AddressId   uuid.UUID
+	Base
+
+	Firstname   string           `json:"firstname"`
+	Lastname    string           `json:"lastname"`
+	Email       string           `json:"email"`
+	AvatarUrl   string           `json:"-"`
+	AddressId   uuid.UUID        `json:"-"`
 	Address     Address          `json:"address"`
 	Permissions []UserPermission `json:"permissions" gorm:"foreignKey:UserId"`
 }
@@ -72,14 +80,14 @@ func main() {
 			userId := uuid.New()
 
 			item := User{
-				Id:          userId,
+				Base:        Base{Id: userId},
 				Firstname:   person.FirstName,
 				Lastname:    person.LastName,
 				Email:       person.Contact.Email,
 				AvatarUrl:   gofakeit.ImageURL(64, 64),
 				IsDeleted:   gofakeit.Bool(),
-				Address:     Address{Id: uuid.New(), Postcode: person.Address.Zip},
-				Permissions: []UserPermission{{Id: uuid.New(), UserId: userId, Name: gofakeit.LoremIpsumWord()}},
+				Address:     Address{Base: Base{Id: uuid.New()}, Postcode: person.Address.Zip},
+				Permissions: []UserPermission{{Base: Base{Id: uuid.New()}, UserId: userId, Name: gofakeit.LoremIpsumWord()}},
 			}
 
 			items = append(items, item)

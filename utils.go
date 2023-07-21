@@ -6,8 +6,8 @@ import (
 )
 
 var filterOperations = map[string]string{
-	"eq":       "==",
-	"ne":       "!=",
+	"eq":       "=",
+	"ne":       "<>",
 	"contains": "like",
 }
 

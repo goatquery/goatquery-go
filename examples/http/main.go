@@ -95,7 +95,7 @@ func getUsers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var users []UserDto
-	res, count, err := goatquery.Apply(GetAllUsers(DB), *query, nil, nil)
+	res, count, err := goatquery.Apply(GetAllUsers(DB), *query, nil, nil, &users)
 	if err != nil {
 		w.Write(createQueryError(err.Error()))
 		return

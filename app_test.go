@@ -23,6 +23,8 @@ type User struct {
 	Firstname string `json:"firstname"`
 	Lastname  string `json:"lastname"`
 	Email     string `json:"email"`
+	UserName  string `gorm:"column:display_name" json:"userName"`
+	PersonSex string `json:"gender"`
 }
 
 func TestMain(m *testing.M) {
@@ -48,7 +50,7 @@ func Test_EmptyQuery(t *testing.T) {
 	query := Query{}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -65,7 +67,7 @@ func Test_QueryWithTop(t *testing.T) {
 	query := Query{Top: 3}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -80,7 +82,7 @@ func Test_QueryWithTopGreaterThanMaxTop(t *testing.T) {
 	maxTop := 2
 	query := Query{Top: 3}
 
-	_, _, err := Apply(DB.Model(&User{}), query, &maxTop, nil)
+	_, _, err := Apply(DB.Model(&User{}), query, &maxTop, nil, &[]User{})
 
 	assert.NotNil(t, err)
 }
@@ -90,7 +92,7 @@ func Test_QueryWithNilTopUsesMaxTop(t *testing.T) {
 	query := Query{}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, &maxTop, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, &maxTop, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -107,7 +109,7 @@ func Test_QueryWithSkip(t *testing.T) {
 	query := Query{Skip: 3}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -124,7 +126,7 @@ func Test_QueryWithCount(t *testing.T) {
 	query := Query{Count: true}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -142,7 +144,7 @@ func Test_QueryWithOrderby(t *testing.T) {
 	query := Query{OrderBy: "firstname"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -157,7 +159,7 @@ func Test_QueryWithOrderbyAsc(t *testing.T) {
 	query := Query{OrderBy: "firstname asc"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -172,7 +174,7 @@ func Test_QueryWithOrderbyDesc(t *testing.T) {
 	query := Query{OrderBy: "firstname desc"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -187,7 +189,7 @@ func Test_QueryWithOrderbyMultiple(t *testing.T) {
 	query := Query{OrderBy: "firstname asc, lastname desc"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -204,7 +206,7 @@ func Test_QueryWithSelect(t *testing.T) {
 	query := Query{Select: "firstname, lastname"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -219,7 +221,7 @@ func Test_QueryWithSelectInvalidColumn(t *testing.T) {
 	query := Query{Select: "firstname, invalid-col"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -243,7 +245,7 @@ func Test_QueryWithSearch(t *testing.T) {
 			t := fmt.Sprintf("%%%s%%", searchTerm)
 
 			return db.Where("firstname like ? or lastname like ?", t, t)
-		})
+		}, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -262,7 +264,7 @@ func Test_QueryWithSearchTermSpace(t *testing.T) {
 			t := fmt.Sprintf("%%%s%%", searchTerm)
 
 			return db.Where("firstname like ? or lastname like ?", t, t)
-		})
+		}, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -277,7 +279,7 @@ func Test_QueryWithSearchNilFunc(t *testing.T) {
 	query := Query{Search: "Goat"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -294,7 +296,7 @@ func Test_QueryWithFilterEquals(t *testing.T) {
 	query := Query{Filter: "firstname eq 'goat'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -309,7 +311,7 @@ func Test_QueryWithFilterNotEquals(t *testing.T) {
 	query := Query{Filter: "firstname ne 'goat'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -324,7 +326,7 @@ func Test_QueryWithFilterEqualsAndEquals(t *testing.T) {
 	query := Query{Filter: "firstname eq 'goat' and lastname eq 'query'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -339,7 +341,7 @@ func Test_QueryWithFilterEqualsAndNotEquals(t *testing.T) {
 	query := Query{Filter: "firstname eq 'goat' and lastname ne 'query'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -354,7 +356,7 @@ func Test_QueryWithFilterContains(t *testing.T) {
 	query := Query{Filter: "firstname contains 'goat'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -369,7 +371,7 @@ func Test_QueryWithFilterContainsAndEquals(t *testing.T) {
 	query := Query{Filter: "firstname contains 'goat' and lastname eq 'query'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -384,7 +386,7 @@ func Test_QueryWithFilterContainsOrEquals(t *testing.T) {
 	query := Query{Filter: "firstname contains 'goat' or lastname eq 'query'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -399,7 +401,7 @@ func Test_QueryWithFilterEqualsWithConjunction(t *testing.T) {
 	query := Query{Filter: "firstname eq 'goatand'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
@@ -414,12 +416,42 @@ func Test_QueryWithFilterEqualsWithConjunctionAndSpaces(t *testing.T) {
 	query := Query{Filter: "firstname eq ' and ' or lastname eq ' and or '"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil)
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
 		return res.Find(&[]User{})
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		return tx.Model(&User{}).Where("firstname = ' and ' or lastname = ' and or '").Find(&[]User{})
+	})
+
+	assert.Equal(t, expectedSql, sql)
+}
+
+func Test_QueryWithFilterGormColumnRename(t *testing.T) {
+	query := Query{Filter: "userName eq 'John'"}
+
+	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
+		return res.Find(&[]User{})
+	})
+
+	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&User{}).Where("display_name = 'John'").Find(&[]User{})
+	})
+
+	assert.Equal(t, expectedSql, sql)
+}
+
+func Test_QueryWithFilterPropertyDoesntMatchJsonProperty(t *testing.T) {
+	query := Query{Filter: "gender eq 'Male'"}
+
+	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
+		return res.Find(&[]User{})
+	})
+
+	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&User{}).Where("person_sex = 'Male'").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)

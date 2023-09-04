@@ -23,6 +23,8 @@ type User struct {
 
 	Firstname   string           `json:"firstname"`
 	Lastname    string           `json:"lastname"`
+	User_Name   string           `gorm:"column:display_name" json:"userName"`
+	PersonSex   string           `json:"gender"`
 	Email       string           `json:"email"`
 	AvatarUrl   string           `json:"avatarUrl"`
 	IsDeleted   bool             `json:"-"`
@@ -49,6 +51,8 @@ type UserDto struct {
 
 	Firstname   string           `json:"firstname"`
 	Lastname    string           `json:"lastname"`
+	User_Name   string           `gorm:"column:display_name" json:"userName"`
+	PersonSex   string           `json:"gender"`
 	Email       string           `json:"email"`
 	AvatarUrl   string           `json:"-"`
 	AddressId   uuid.UUID        `json:"-"`
@@ -83,6 +87,8 @@ func main() {
 				Base:        Base{Id: userId},
 				Firstname:   person.FirstName,
 				Lastname:    person.LastName,
+				User_Name:   fmt.Sprintf("%s-%s", person.FirstName, userId.String()),
+				PersonSex:   person.Gender,
 				Email:       person.Contact.Email,
 				AvatarUrl:   gofakeit.ImageURL(64, 64),
 				IsDeleted:   gofakeit.Bool(),
@@ -120,7 +126,7 @@ func getUsers(c *fiber.Ctx) error {
 	}
 
 	var users []UserDto
-	res, count, err := goatquery.Apply(GetAllUsers(DB), query, nil, nil)
+	res, count, err := goatquery.Apply(GetAllUsers(DB), query, nil, nil, &users)
 	if err != nil {
 		return c.Status(400).JSON(goatquery.QueryErrorResponse{Status: 400, Message: err.Error()})
 	}

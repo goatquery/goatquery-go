@@ -1,4 +1,4 @@
-module github.com/asadasafish/goatquery-go
+module github.com/goatquery/goatquery-go
 
 go 1.20
 

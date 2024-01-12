@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -14,7 +15,7 @@ import (
 var DB *gorm.DB
 
 type Base struct {
-	Id uint `json:"id"`
+	Id uuid.UUID `json:"id"`
 }
 
 type User struct {
@@ -25,6 +26,7 @@ type User struct {
 	Email     string `json:"email"`
 	UserName  string `gorm:"column:display_name" json:"userName"`
 	PersonSex string `json:"gender"`
+	Age       uint   `json:"age"`
 }
 
 func TestMain(m *testing.M) {

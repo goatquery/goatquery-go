@@ -27,6 +27,7 @@ type User struct {
 	PersonSex   string           `json:"gender"`
 	Email       string           `json:"email"`
 	AvatarUrl   string           `json:"avatarUrl"`
+	Age         uint             `json:"age"`
 	IsDeleted   bool             `json:"-"`
 	AddressId   uuid.UUID        `json:"-"`
 	Address     Address          `json:"addresses"`
@@ -55,6 +56,7 @@ type UserDto struct {
 	PersonSex   string           `json:"gender"`
 	Email       string           `json:"email"`
 	AvatarUrl   string           `json:"-"`
+	Age         uint             `json:"age"`
 	AddressId   uuid.UUID        `json:"-"`
 	Address     Address          `json:"address"`
 	Permissions []UserPermission `json:"permissions" gorm:"foreignKey:UserId"`
@@ -91,6 +93,7 @@ func main() {
 				PersonSex:   person.Gender,
 				Email:       person.Contact.Email,
 				AvatarUrl:   gofakeit.ImageURL(64, 64),
+				Age:         gofakeit.UintRange(0, 100),
 				IsDeleted:   gofakeit.Bool(),
 				Address:     Address{Base: Base{Id: uuid.New()}, Postcode: person.Address.Zip},
 				Permissions: []UserPermission{{Base: Base{Id: uuid.New()}, UserId: userId, Name: gofakeit.LoremIpsumWord()}},

@@ -37,7 +37,7 @@ func BuildPagedResponse[T any](res []T, query Query, totalCount *int64) PagedRes
 				// '-' in the json tag means to not return that property
 				newObj[name] = v.FieldByNameFunc(func(p string) bool {
 					return strings.EqualFold(property, p)
-				}).String()
+				}).Interface()
 			}
 		}
 

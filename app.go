@@ -53,7 +53,7 @@ func Apply(db *gorm.DB, query Query, maxTop *int, searchFunc func(db *gorm.DB, s
 				valueWithoutQuotes := getValueBetweenQuotes(value)
 				where.WriteString(fmt.Sprintf("%s %s '%%%s%%'", property, filterOperations[operand], valueWithoutQuotes))
 			} else {
-				where.WriteString(fmt.Sprintf("%s %s %s", property, filterOperations[operand], value))
+				where.WriteString(fmt.Sprintf("LOWER(%s) %s LOWER(%s)", property, filterOperations[operand], value))
 			}
 		}
 

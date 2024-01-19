@@ -303,7 +303,7 @@ func Test_QueryWithFilterEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname = 'goat'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) = LOWER('goat')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -318,7 +318,7 @@ func Test_QueryWithFilterNotEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname <> 'goat'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) <> LOWER('goat')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -333,7 +333,7 @@ func Test_QueryWithFilterEqualsAndEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname = 'goat' and lastname = 'query'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) = LOWER('goat') and LOWER(lastname) = LOWER('query')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -348,7 +348,7 @@ func Test_QueryWithFilterEqualsAndNotEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname = 'goat' and lastname <> 'query'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) = LOWER('goat') and LOWER(lastname) <> LOWER('query')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -378,7 +378,7 @@ func Test_QueryWithFilterContainsAndEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname like '%goat%' and lastname = 'query'").Find(&[]User{})
+		return tx.Model(&User{}).Where("firstname like '%goat%' and LOWER(lastname) = LOWER('query')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -393,7 +393,7 @@ func Test_QueryWithFilterContainsOrEquals(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname like '%goat%' or lastname = 'query'").Find(&[]User{})
+		return tx.Model(&User{}).Where("firstname like '%goat%' or LOWER(lastname) = LOWER('query')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -408,7 +408,7 @@ func Test_QueryWithFilterEqualsWithConjunction(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname = 'goatand'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) = LOWER('goatand')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -423,7 +423,7 @@ func Test_QueryWithFilterEqualsWithConjunctionAndSpaces(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("firstname = ' and ' or lastname = ' and or '").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(firstname) = LOWER(' and ') or LOWER(lastname) = LOWER(' and or ')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -438,7 +438,7 @@ func Test_QueryWithFilterGormColumnRename(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("display_name = 'John'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(display_name) = LOWER('John')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)
@@ -453,7 +453,7 @@ func Test_QueryWithFilterPropertyDoesntMatchJsonProperty(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("person_sex = 'Male'").Find(&[]User{})
+		return tx.Model(&User{}).Where("LOWER(person_sex) = LOWER('Male')").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)

@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/google/uuid v1.5.0
 	github.com/stretchr/testify v1.9.0
-	gorm.io/driver/sqlite v1.5.4
+	gorm.io/driver/sqlite v1.5.5
 	gorm.io/gorm v1.25.8
 )
 

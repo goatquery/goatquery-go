@@ -22,7 +22,7 @@ func splitString(input string) []string {
 		if char == '\'' {
 			buffer.WriteRune(rune(char))
 			singleQuote = !singleQuote
-		} else if !singleQuote && (char == 'a' || char == 'o') && i+1 < len(input) && (input[i:i+3] == "and" || input[i:i+2] == "or") {
+		} else if !singleQuote && (char == 'a' || char == 'o') && i+1 < len(input) && (input[i-1:i+3] == " and" || input[i-1:i+2] == " or") {
 			if buffer.Len() > 0 {
 				result = append(result, strings.TrimSpace(buffer.String()))
 				buffer.Reset()

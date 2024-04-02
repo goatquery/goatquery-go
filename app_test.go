@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,8 @@ import (
 var DB *gorm.DB
 
 type Base struct {
-	Id uuid.UUID `json:"id"`
+	Id        uuid.UUID `json:"id"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 type User struct {
@@ -470,6 +472,22 @@ func Test_QueryWithFilterAndOrInColumnName(t *testing.T) {
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		return tx.Model(&User{}).Where("LOWER(contributor) = LOWER('true')").Find(&[]User{})
+	})
+
+	assert.Equal(t, expectedSql, sql)
+}
+
+func Test_QueryWithFilterCompositeStructProperty(t *testing.T) {
+	now := time.Now().UTC().String()
+	query := Query{Filter: fmt.Sprintf("createdAt eq '%s'", now)}
+
+	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
+		return res.Find(&[]User{})
+	})
+
+	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&User{}).Where(fmt.Sprintf("LOWER(created_at) = LOWER('%s')", now)).Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)

@@ -5,9 +5,9 @@ go 1.21
 require (
 	github.com/brianvoe/gofakeit/v6 v6.23.2
 	github.com/gofiber/fiber/v2 v2.49.1
-	github.com/google/uuid v1.5.0
-	gorm.io/driver/sqlite v1.5.4
-	gorm.io/gorm v1.25.5
+	github.com/google/uuid v1.6.0
+	gorm.io/driver/sqlite v1.5.5
+	gorm.io/gorm v1.25.9
 )
 
 replace goatquery => ../..

@@ -18,16 +18,21 @@ type Base struct {
 	Id uuid.UUID `json:"id"`
 }
 
+type Address struct {
+	Postcode string `json:"postcode"`
+}
+
 type User struct {
 	Base
 
-	Firstname   string `json:"firstname"`
-	Lastname    string `json:"lastname"`
-	Email       string `json:"email"`
-	UserName    string `gorm:"column:display_name" json:"userName"`
-	PersonSex   string `json:"gender"`
-	Age         uint   `json:"age"`
-	Contributor bool   `json:"contributor"`
+	Firstname   string    `json:"firstname"`
+	Lastname    string    `json:"lastname"`
+	Email       string    `json:"email"`
+	UserName    string    `gorm:"column:display_name" json:"userName"`
+	PersonSex   string    `json:"gender"`
+	Age         uint      `json:"age"`
+	Contributor bool      `json:"contributor"`
+	Addresses   []Address `json:"addresses"`
 }
 
 func TestMain(m *testing.M) {
@@ -462,6 +467,21 @@ func Test_QueryWithFilterPropertyDoesntMatchJsonProperty(t *testing.T) {
 
 func Test_QueryWithFilterAndOrInColumnName(t *testing.T) {
 	query := Query{Filter: "contributor eq 'true'"}
+
+	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
+		return res.Find(&[]User{})
+	})
+
+	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
+		return tx.Model(&User{}).Where("LOWER(contributor) = LOWER('true')").Find(&[]User{})
+	})
+
+	assert.Equal(t, expectedSql, sql)
+}
+
+func Test_QueryWithFilterOnPropertyInCollection(t *testing.T) {
+	query := Query{Filter: "addresses/postcode eq 'asd'"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})

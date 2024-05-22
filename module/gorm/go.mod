@@ -1,6 +1,6 @@
 module github.com/goatquery/goatquery-go/module/gorm
 
-go 1.22.0
+go 1.22
 
 require (
 	github.com/glebarez/sqlite v1.11.0

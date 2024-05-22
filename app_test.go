@@ -461,7 +461,7 @@ func Test_QueryWithFilterPropertyDoesntMatchJsonProperty(t *testing.T) {
 }
 
 func Test_QueryWithFilterAndOrInColumnName(t *testing.T) {
-	query := Query{Filter: "contributor eq 'true'"}
+	query := Query{Filter: "contributor eq true"}
 
 	sql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
 		res, _, _ := Apply(tx.Model(&User{}), query, nil, nil, &[]User{})
@@ -469,7 +469,7 @@ func Test_QueryWithFilterAndOrInColumnName(t *testing.T) {
 	})
 
 	expectedSql := DB.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Model(&User{}).Where("LOWER(contributor) = LOWER('true')").Find(&[]User{})
+		return tx.Model(&User{}).Where("contributor = true").Find(&[]User{})
 	})
 
 	assert.Equal(t, expectedSql, sql)

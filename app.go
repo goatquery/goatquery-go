@@ -47,9 +47,15 @@ func Apply(db *gorm.DB, query Query, maxTop *int, searchFunc func(db *gorm.DB, s
 			operand := opts[1]
 			value := opts[2]
 
+			field, ok := modelType.FieldByNameFunc(func(s string) bool {
+				return strings.EqualFold(s, property)
+			})
+
 			property = GetGormColumnNameByJsonTag(namer, tableName, modelType, property)
 
-			if strings.EqualFold(operand, "contains") {
+			if ok && field.Type.Kind() == reflect.Bool {
+				where.WriteString(fmt.Sprintf("%s %s %s", property, filterOperations[operand], value))
+			} else if strings.EqualFold(operand, "contains") {
 				valueWithoutQuotes := getValueBetweenQuotes(value)
 				where.WriteString(fmt.Sprintf("%s %s '%%%s%%'", property, filterOperations[operand], valueWithoutQuotes))
 			} else {

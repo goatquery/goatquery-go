@@ -9,3 +9,7 @@ type Query struct {
 	Search  string
 	Filter  string
 }
+
+type QueryOptions struct {
+	MaxTop int
+}

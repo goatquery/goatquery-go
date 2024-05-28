@@ -36,10 +36,13 @@ func (l *Lexer) NextToken() token.Token {
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF
+	case '\'':
+		tok.Type = token.STRING
+		tok.Literal = l.readString()
 	default:
 		if isLetter(l.character) {
 			tok.Literal = l.readIdentifier()
-			tok.Type = token.LookupIdent(tok.Literal)
+			tok.Type = token.IDENT
 			return tok
 		} else if isDigit(l.character) {
 			tok.Literal = l.readNumber()
@@ -84,7 +87,7 @@ func (l *Lexer) readString() string {
 
 	for {
 		l.readCharacter()
-		if l.character == '"' || l.character == 0 {
+		if l.character == '\'' || l.character == 0 {
 			break
 		}
 	}

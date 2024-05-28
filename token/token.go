@@ -1,7 +1,5 @@
 package token
 
-import "strings"
-
 const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
@@ -9,24 +7,7 @@ const (
 	IDENT  = "IDENT"
 	INT    = "INT"
 	STRING = "STRING"
-
-	// Keywords
-	ASC  = "ASC"
-	DESC = "DESC"
 )
-
-var keywords = map[string]TokenType{
-	"asc":  ASC,
-	"desc": DESC,
-}
-
-func LookupIdent(identifier string) TokenType {
-	if tok, ok := keywords[strings.ToLower(identifier)]; ok {
-		return tok
-	}
-
-	return IDENT
-}
 
 type TokenType string
 

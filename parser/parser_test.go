@@ -5,18 +5,30 @@ import (
 
 	"github.com/goatquery/goatquery-go/ast"
 	"github.com/goatquery/goatquery-go/lexer"
+	"github.com/goatquery/goatquery-go/token"
 	"github.com/stretchr/testify/assert"
 )
 
 func Test_ParsingOrderByStatement(t *testing.T) {
 	tests := []struct {
-		input             string
-		expectedLiteral   string
-		expectedDirection ast.OrderByDirection
+		input    string
+		expected []ast.OrderByStatement
 	}{
-		{"id", "id", ast.Ascending},
-		{"id asc", "id", ast.Ascending},
-		{"id desc", "id", ast.Descending},
+		{"ID desc", []ast.OrderByStatement{{Token: token.Token{Type: token.IDENT, Literal: "ID"}, Direction: ast.Descending}}},
+		{"id asc", []ast.OrderByStatement{{Token: token.Token{Type: token.IDENT, Literal: "id"}, Direction: ast.Ascending}}},
+		{"Name", []ast.OrderByStatement{{Token: token.Token{Type: token.IDENT, Literal: "Name"}, Direction: ast.Ascending}}},
+		{"id asc, name desc", []ast.OrderByStatement{
+			{Token: token.Token{Type: token.IDENT, Literal: "id"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "name"}, Direction: ast.Descending},
+		}},
+		{"id asc, name desc, age, address asc, postcode desc", []ast.OrderByStatement{
+			{Token: token.Token{Type: token.IDENT, Literal: "id"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "name"}, Direction: ast.Descending},
+			{Token: token.Token{Type: token.IDENT, Literal: "age"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "address"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "postcode"}, Direction: ast.Descending},
+		}},
+		{"", []ast.OrderByStatement{}},
 	}
 
 	for _, test := range tests {
@@ -24,12 +36,13 @@ func Test_ParsingOrderByStatement(t *testing.T) {
 		p := NewParser(l)
 
 		statements := p.ParseOrderBy()
-		assert.Len(t, statements, 1)
 
-		stmt := statements[0]
+		for i, expected := range test.expected {
+			stmt := statements[i]
 
-		assert.Equal(t, test.expectedLiteral, stmt.TokenLiteral())
-		assert.Equal(t, test.expectedDirection, stmt.Direction)
+			assert.Equal(t, expected.TokenLiteral(), stmt.TokenLiteral())
+			assert.Equal(t, expected.Direction, stmt.Direction)
+		}
 	}
 }
 
@@ -43,6 +56,8 @@ func Test_ParsingFilterStatement(t *testing.T) {
 		{"Name eq 'John'", "Name", "eq", "John"},
 		{"Firstname eq 'Jane'", "Firstname", "eq", "Jane"},
 		{"Age eq 21", "Age", "eq", "21"},
+		{"Age ne 10", "Age", "ne", "10"},
+		{"Name contains 'John'", "Name", "contains", "John"},
 	}
 
 	for _, test := range tests {

@@ -5,7 +5,6 @@ type Query struct {
 	Skip    int
 	Count   bool
 	OrderBy string
-	Select  string
 	Search  string
 	Filter  string
 }

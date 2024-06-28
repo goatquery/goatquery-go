@@ -7,6 +7,9 @@ const (
 	IDENT  = "IDENT"
 	INT    = "INT"
 	STRING = "STRING"
+
+	LPAREN = "LPAREN"
+	RPAREN = "RPAREN"
 )
 
 type TokenType string

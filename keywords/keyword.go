@@ -1,13 +1,13 @@
 package keywords
 
 const (
-	ASC  = "ASC"
-	DESC = "DESC"
+	ASC  = "asc"
+	DESC = "desc"
 
-	EQ       = "EQ"
-	NE       = "NE"
-	CONTAINS = "CONTAINS"
+	EQ       = "eq"
+	NE       = "ne"
+	CONTAINS = "contains"
 
-	AND = "AND"
-	OR  = "OR"
+	AND = "and"
+	OR  = "or"
 )

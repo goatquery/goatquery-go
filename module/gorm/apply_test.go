@@ -12,8 +12,13 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+type Base struct {
+	Age uint `gorm:"column:user_age"`
+}
+
 type User struct {
-	Age       uint
+	Base
+
 	Firstname string
 }
 
@@ -27,7 +32,7 @@ func TestMain(m *testing.M) {
 
 func setup() {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Error),
 	})
 
 	if err != nil {
@@ -38,12 +43,12 @@ func setup() {
 	db.AutoMigrate(&User{})
 
 	if err := db.Model(&User{}).Create([]User{
-		{2, "John"},
-		{1, "Jane"},
-		{2, "Apple"},
-		{1, "Harry"},
-		{3, "Doe"},
-		{3, "Egg"},
+		{Base{2}, "John"},
+		{Base{1}, "Jane"},
+		{Base{2}, "Apple"},
+		{Base{1}, "Harry"},
+		{Base{3}, "Doe"},
+		{Base{3}, "Egg"},
 	}).Error; err != nil {
 		panic("failed to seed")
 	}
@@ -55,13 +60,101 @@ func Test_OrderBy(t *testing.T) {
 		expected []User
 	}{
 		{"age desc, firstname asc", []User{
-			{3, "Doe"},
-			{3, "Egg"},
-			{2, "Apple"},
-			{2, "John"},
-			{1, "Harry"},
-			{1, "Jane"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
+			{Base{2}, "Apple"},
+			{Base{2}, "John"},
+			{Base{1}, "Harry"},
+			{Base{1}, "Jane"},
 		}},
+		// {"age desc, firstname desc", []User{
+		// 	{Base{3}, "Egg"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// }},
+		// {"age desc", []User{
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// }},
+		// {"Age asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"age", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"age asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"Age asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"aGE asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"AGe asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"aGE Asc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"age aSc", []User{
+		// 	{Base{1}, "Jane"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{2}, "John"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
+		// {"", []User{
+		// 	{Base{2}, "John"},
+		// 	{Base{1}, "Jane"},
+		// 	{Base{2}, "Apple"},
+		// 	{Base{1}, "Harry"},
+		// 	{Base{3}, "Doe"},
+		// 	{Base{3}, "Egg"},
+		// }},
 	}
 
 	for _, test := range tests {
@@ -139,29 +232,29 @@ func Test_Skip(t *testing.T) {
 		expected []User
 	}{
 		{1, []User{
-			{1, "Jane"},
-			{2, "Apple"},
-			{2, "John"},
-			{3, "Doe"},
-			{3, "Egg"},
+			{Base{1}, "Jane"},
+			{Base{2}, "Apple"},
+			{Base{2}, "John"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
 		}},
 		{2, []User{
-			{2, "Apple"},
-			{2, "John"},
-			{3, "Doe"},
-			{3, "Egg"},
+			{Base{2}, "Apple"},
+			{Base{2}, "John"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
 		}},
 		{3, []User{
-			{2, "John"},
-			{3, "Doe"},
-			{3, "Egg"},
+			{Base{2}, "John"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
 		}},
 		{4, []User{
-			{3, "Doe"},
-			{3, "Egg"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
 		}},
 		{5, []User{
-			{3, "Egg"},
+			{Base{3}, "Egg"},
 		}},
 		{6, []User{}},
 		{10_000, []User{}},
@@ -267,6 +360,75 @@ func Test_TopWithMaxTopReturnsError(t *testing.T) {
 
 		_, _, err := Apply(DB, query, &User{}, nil, &options)
 		assert.Error(t, err)
+	}
+}
+
+func Test_Filter(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []User
+	}{
+		{"firstname eq 'John'", []User{
+			{Base{2}, "John"},
+		}},
+		{"firstname eq 'Random'", []User{}},
+		{"Age eq 1", []User{
+			{Base{1}, "Jane"},
+			{Base{1}, "Harry"},
+		}},
+		{"Age eq 0", []User{}},
+		{"firstname eq 'John' and Age eq 2", []User{
+			{Base{2}, "John"},
+		}},
+		{"firstname eq 'John' or Age eq 3", []User{
+			{Base{2}, "John"},
+			{Base{3}, "Doe"},
+			{Base{3}, "Egg"},
+		}},
+		{"Age eq 1 and firstName eq 'Harry' or Age eq 2", []User{
+			{Base{2}, "John"},
+			{Base{2}, "Apple"},
+			{Base{1}, "Harry"},
+		}},
+		{"Age eq 1 or Age eq 2 or firstName eq 'Egg'", []User{
+			{Base{2}, "John"},
+			{Base{1}, "Jane"},
+			{Base{2}, "Apple"},
+			{Base{1}, "Harry"},
+			{Base{3}, "Egg"},
+		}},
+		{"Age ne 3", []User{
+			{Base{2}, "John"},
+			{Base{1}, "Jane"},
+			{Base{2}, "Apple"},
+			{Base{1}, "Harry"},
+		}},
+		{"firstName contains 'a'", []User{
+			{Base{1}, "Jane"},
+			{Base{2}, "Apple"},
+			{Base{1}, "Harry"},
+		}},
+		{"Age ne 1 and firstName contains 'a'", []User{
+			{Base{2}, "Apple"},
+		}},
+		{"Age ne 1 and firstName contains 'a' or firstName eq 'Apple'", []User{
+			{Base{2}, "Apple"},
+		}},
+	}
+
+	for _, test := range tests {
+		query := goatquery.Query{
+			Filter: test.input,
+		}
+
+		var output []User
+		res, _, err := Apply(DB, query, &output, nil, nil)
+		assert.NoError(t, err)
+
+		err = res.Find(&output).Error
+		assert.NoError(t, err)
+
+		assert.Equal(t, test.expected, output)
 	}
 }
 

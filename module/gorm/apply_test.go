@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/goatquery/goatquery-go"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -19,7 +21,10 @@ type Base struct {
 type User struct {
 	Base
 
-	Firstname string
+	UserId      uuid.UUID
+	Firstname   string
+	Balance     *float64
+	DateOfBirth time.Time
 }
 
 var DB *gorm.DB
@@ -28,6 +33,29 @@ func TestMain(m *testing.M) {
 	setup()
 	code := m.Run()
 	os.Exit(code)
+}
+
+func timeMustParse(value string) time.Time {
+	val, err := time.Parse("2006-01-02 15:04:05", value)
+	if err == nil {
+		return val
+	}
+
+	val, err = time.Parse("2006-01-02", value)
+	if err != nil {
+		panic("unable to parse date time")
+	}
+
+	return val
+}
+
+var users = map[string]User{
+	"John":  {Base: Base{Age: 2}, Firstname: "John", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2004-01-31 23:59:59"), Balance: makePointer(1.50)},
+	"Jane":  {Base: Base{Age: 1}, Firstname: "Jane", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2020-05-09 15:30:00"), Balance: makePointer(0.0)},
+	"Apple": {Base: Base{Age: 2}, Firstname: "Apple", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("1980-12-31 00:00:01"), Balance: makePointer(1204050.98)},
+	"Harry": {Base: Base{Age: 1}, Firstname: "Harry", UserId: uuid.MustParse("e4c7772b-8947-4e46-98ed-644b417d2a08"), DateOfBirth: timeMustParse("2002-08-01"), Balance: makePointer(0.5372958205929493)},
+	"Doe":   {Base: Base{Age: 3}, Firstname: "Doe", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2023-07-26 12:00:30"), Balance: nil},
+	"Egg":   {Base: Base{Age: 3}, Firstname: "Egg", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2000-01-01 00:00:00"), Balance: makePointer(1334534453453433.33435443343231235652)},
 }
 
 func setup() {
@@ -43,12 +71,12 @@ func setup() {
 	db.AutoMigrate(&User{})
 
 	if err := db.Model(&User{}).Create([]User{
-		{Base{2}, "John"},
-		{Base{1}, "Jane"},
-		{Base{2}, "Apple"},
-		{Base{1}, "Harry"},
-		{Base{3}, "Doe"},
-		{Base{3}, "Egg"},
+		users["John"],
+		users["Jane"],
+		users["Apple"],
+		users["Harry"],
+		users["Doe"],
+		users["Egg"],
 	}).Error; err != nil {
 		panic("failed to seed")
 	}
@@ -60,101 +88,101 @@ func Test_OrderBy(t *testing.T) {
 		expected []User
 	}{
 		{"age desc, firstname asc", []User{
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
-			{Base{2}, "Apple"},
-			{Base{2}, "John"},
-			{Base{1}, "Harry"},
-			{Base{1}, "Jane"},
+			users["Doe"],
+			users["Egg"],
+			users["Apple"],
+			users["John"],
+			users["Harry"],
+			users["Jane"],
 		}},
-		// {"age desc, firstname desc", []User{
-		// 	{Base{3}, "Egg"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// }},
-		// {"age desc", []User{
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// }},
-		// {"Age asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"age", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"age asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"Age asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"aGE asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"AGe asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"aGE Asc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"age aSc", []User{
-		// 	{Base{1}, "Jane"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{2}, "John"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
-		// {"", []User{
-		// 	{Base{2}, "John"},
-		// 	{Base{1}, "Jane"},
-		// 	{Base{2}, "Apple"},
-		// 	{Base{1}, "Harry"},
-		// 	{Base{3}, "Doe"},
-		// 	{Base{3}, "Egg"},
-		// }},
+		{"age desc, firstname desc", []User{
+			users["Egg"],
+			users["Doe"],
+			users["John"],
+			users["Apple"],
+			users["Jane"],
+			users["Harry"],
+		}},
+		{"age desc", []User{
+			users["Doe"],
+			users["Egg"],
+			users["John"],
+			users["Apple"],
+			users["Jane"],
+			users["Harry"],
+		}},
+		{"Age asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"age", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"age asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"Age asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"aGE asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"AGe asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"aGE Asc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"age aSc", []User{
+			users["Jane"],
+			users["Harry"],
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"", []User{
+			users["John"],
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
+			users["Doe"],
+			users["Egg"],
+		}},
 	}
 
 	for _, test := range tests {
@@ -178,7 +206,7 @@ func Test_Count(t *testing.T) {
 		input         bool
 		expectedCount *int64
 	}{
-		{true, makeIntPointer(6)},
+		{true, makePointer(int64(6))},
 		{false, nil},
 	}
 
@@ -232,29 +260,29 @@ func Test_Skip(t *testing.T) {
 		expected []User
 	}{
 		{1, []User{
-			{Base{1}, "Jane"},
-			{Base{2}, "Apple"},
-			{Base{2}, "John"},
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
+			users["Jane"],
+			users["Apple"],
+			users["John"],
+			users["Doe"],
+			users["Egg"],
 		}},
 		{2, []User{
-			{Base{2}, "Apple"},
-			{Base{2}, "John"},
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
+			users["Apple"],
+			users["John"],
+			users["Doe"],
+			users["Egg"],
 		}},
 		{3, []User{
-			{Base{2}, "John"},
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
+			users["John"],
+			users["Doe"],
+			users["Egg"],
 		}},
 		{4, []User{
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
+			users["Doe"],
+			users["Egg"],
 		}},
 		{5, []User{
-			{Base{3}, "Egg"},
+			users["Egg"],
 		}},
 		{6, []User{}},
 		{10_000, []User{}},
@@ -262,8 +290,7 @@ func Test_Skip(t *testing.T) {
 
 	for _, test := range tests {
 		query := goatquery.Query{
-			Skip:    test.input,
-			OrderBy: "age asc, firstname asc",
+			Skip: test.input,
 		}
 
 		var output []User
@@ -369,50 +396,105 @@ func Test_Filter(t *testing.T) {
 		expected []User
 	}{
 		{"firstname eq 'John'", []User{
-			{Base{2}, "John"},
+			users["John"],
 		}},
 		{"firstname eq 'Random'", []User{}},
 		{"Age eq 1", []User{
-			{Base{1}, "Jane"},
-			{Base{1}, "Harry"},
+			users["Jane"],
+			users["Harry"],
 		}},
 		{"Age eq 0", []User{}},
 		{"firstname eq 'John' and Age eq 2", []User{
-			{Base{2}, "John"},
+			users["John"],
 		}},
 		{"firstname eq 'John' or Age eq 3", []User{
-			{Base{2}, "John"},
-			{Base{3}, "Doe"},
-			{Base{3}, "Egg"},
+			users["John"],
+			users["Doe"],
+			users["Egg"],
 		}},
 		{"Age eq 1 and firstName eq 'Harry' or Age eq 2", []User{
-			{Base{2}, "John"},
-			{Base{2}, "Apple"},
-			{Base{1}, "Harry"},
+			users["John"],
+			users["Apple"],
+			users["Harry"],
 		}},
 		{"Age eq 1 or Age eq 2 or firstName eq 'Egg'", []User{
-			{Base{2}, "John"},
-			{Base{1}, "Jane"},
-			{Base{2}, "Apple"},
-			{Base{1}, "Harry"},
-			{Base{3}, "Egg"},
+			users["John"],
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
+			users["Egg"],
 		}},
 		{"Age ne 3", []User{
-			{Base{2}, "John"},
-			{Base{1}, "Jane"},
-			{Base{2}, "Apple"},
-			{Base{1}, "Harry"},
+			users["John"],
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
 		}},
 		{"firstName contains 'a'", []User{
-			{Base{1}, "Jane"},
-			{Base{2}, "Apple"},
-			{Base{1}, "Harry"},
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
 		}},
 		{"Age ne 1 and firstName contains 'a'", []User{
-			{Base{2}, "Apple"},
+			users["Apple"],
 		}},
 		{"Age ne 1 and firstName contains 'a' or firstName eq 'Apple'", []User{
-			{Base{2}, "Apple"},
+			users["Apple"],
+		}},
+		{"Firstname eq 'John' and Age eq 2 or Age eq 3", []User{
+			users["John"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"(Firstname eq 'John' and Age eq 2) or Age eq 3", []User{
+			users["John"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"Firstname eq 'John' and (Age eq 2 or Age eq 3)", []User{
+			users["John"],
+		}},
+		{"(Firstname eq 'John' and Age eq 2 or Age eq 3)", []User{
+			users["John"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"(Firstname eq 'John') or (Age eq 3 and Firstname eq 'Egg') or Age eq 1 and (Age eq 2)", []User{
+			users["John"],
+			users["Egg"],
+		}},
+		{"UserId eq e4c7772b-8947-4e46-98ed-644b417d2a08", []User{
+			users["Harry"],
+		}},
+		{"age lt 3", []User{
+			users["John"],
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
+		}},
+		{"age lt 1", []User{}},
+		{"age lte 2", []User{
+			users["John"],
+			users["Jane"],
+			users["Apple"],
+			users["Harry"],
+		}},
+		{"age gt 1", []User{
+			users["John"],
+			users["Apple"],
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"age gte 3", []User{
+			users["Doe"],
+			users["Egg"],
+		}},
+		{"age lt 3 and age gt 1", []User{
+			users["John"],
+			users["Apple"],
+		}},
+		{"balanceDecimal eq 1.50m", []User{
+			users["John"],
 		}},
 	}
 
@@ -432,6 +514,6 @@ func Test_Filter(t *testing.T) {
 	}
 }
 
-func makeIntPointer(v int64) *int64 {
+func makePointer[T any](v T) *T {
 	return &v
 }

@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/goatquery/goatquery-go"
@@ -11,6 +12,7 @@ import (
 	"github.com/goatquery/goatquery-go/parser"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 type SearchFunc = func(db *gorm.DB, searchTerm string) *gorm.DB
@@ -25,6 +27,10 @@ func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc Sea
 	if options != nil && query.Top > options.MaxTop {
 		return nil, nil, fmt.Errorf("The value supplied for the query parameter 'Top' was greater than the maximum top allowed for this resource")
 	}
+
+	v := reflect.ValueOf(model)
+	t := reflect.Indirect(v).Type().Elem()
+	namer := db.Statement.NamingStrategy
 
 	// Filter
 	if query.Filter != "" {
@@ -55,7 +61,9 @@ func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc Sea
 		statements := p.ParseOrderBy()
 
 		for _, statement := range statements {
-			sql := fmt.Sprintf("%s %s", statement.TokenLiteral(), statement.Direction)
+			property := GetGormColumnName(namer, namer.TableName(t.Name()), t, statement.TokenLiteral())
+
+			sql := fmt.Sprintf("%s %s", property, statement.Direction)
 
 			db = db.Order(sql)
 		}
@@ -80,6 +88,35 @@ func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc Sea
 	}
 
 	return db, nil, nil
+}
+
+func GetGormColumnName(namer schema.Namer, tableName string, t reflect.Type, property string) string {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+
+		if field.Anonymous {
+			if columnName := GetGormColumnName(namer, tableName, field.Type, property); columnName != "" {
+				return columnName
+			}
+			continue
+		}
+
+		propertyName := strings.Split(field.Tag.Get("json"), ",")[0]
+		if propertyName == "" {
+			propertyName = field.Name
+		}
+
+		if strings.EqualFold(propertyName, property) {
+			settings := schema.ParseTagSetting(field.Tag.Get("gorm"), ";")
+			if settings["COLUMN"] != "" {
+				return settings["COLUMN"]
+			}
+
+			return namer.ColumnName(tableName, field.Name)
+		}
+	}
+
+	return namer.ColumnName(tableName, property)
 }
 
 func EvaluateFilter(exp ast.Expression, db *gorm.DB) *gorm.DB {

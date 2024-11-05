@@ -28,6 +28,11 @@ func Test_ParsingOrderByStatement(t *testing.T) {
 			{Token: token.Token{Type: token.IDENT, Literal: "address"}, Direction: ast.Ascending},
 			{Token: token.Token{Type: token.IDENT, Literal: "postcode"}, Direction: ast.Descending},
 		}},
+		{"address1Line10 asc, asc asc, desc desc", []ast.OrderByStatement{
+			{Token: token.Token{Type: token.IDENT, Literal: "address1Line10"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "asc"}, Direction: ast.Ascending},
+			{Token: token.Token{Type: token.IDENT, Literal: "desc"}, Direction: ast.Descending},
+		}},
 		{"", []ast.OrderByStatement{}},
 	}
 
@@ -58,6 +63,18 @@ func Test_ParsingFilterStatement(t *testing.T) {
 		{"Age eq 21", "Age", "eq", "21"},
 		{"Age ne 10", "Age", "ne", "10"},
 		{"Name contains 'John'", "Name", "contains", "John"},
+		{"Id eq e4c7772b-8947-4e46-98ed-644b417d2a08", "Id", "eq", "e4c7772b-8947-4e46-98ed-644b417d2a08"},
+		{"Id eq 3.14159265359f", "Id", "eq", "3.14159265359f"},
+		{"Age lt 99", "Age", "lt", "99"},
+		{"Age lte 99", "Age", "lte", "99"},
+		{"Age gt 99", "Age", "gt", "99"},
+		{"Age gte 99", "Age", "gte", "99"},
+		{"dateOfBirth eq 2000-01-01", "dateOfBirth", "eq", "2000-01-01"},
+		{"dateOfBirth lt 2000-01-01", "dateOfBirth", "lt", "2000-01-01"},
+		{"dateOfBirth lte 2000-01-01", "dateOfBirth", "lte", "2000-01-01"},
+		{"dateOfBirth gt 2000-01-01", "dateOfBirth", "gt", "2000-01-01"},
+		{"dateOfBirth gte 2000-01-01", "dateOfBirth", "gte", "2000-01-01"},
+		{"dateOfBirth eq 2023-01-30T09:29:55.1750906Z", "dateOfBirth", "eq", "2023-01-30T09:29:55.1750906Z"},
 	}
 
 	for _, test := range tests {
@@ -75,7 +92,91 @@ func Test_ParsingFilterStatement(t *testing.T) {
 	}
 }
 
-func Test_ParsingComplexFilterStatement(t *testing.T) {
+func Test_ParsingInvalidFilterReturnsError(t *testing.T) {
+	inputs := []string{
+		"Name",
+		"",
+		"eq nee",
+		"name nee 10",
+		"id contains 10",
+		"id contaiins '10'",
+		"id eq       John'",
+	}
+
+	for _, input := range inputs {
+		l := lexer.NewLexer(input)
+		p := NewParser(l)
+
+		statement := p.ParseFilter()
+
+		expression := statement.Expression
+		assert.Nil(t, expression)
+	}
+}
+
+func Test_ParsingFilterStatementWithAnd(t *testing.T) {
+	input := `Name eq 'John' and Age eq 10`
+
+	l := lexer.NewLexer(input)
+	p := NewParser(l)
+
+	statement := p.ParseFilter()
+
+	expression := statement.Expression
+	assert.NotNil(t, expression)
+
+	//Left
+	left, ok := expression.Left.(*ast.InfixExpression)
+	assert.True(t, ok)
+
+	assert.Equal(t, "Name", left.Left.TokenLiteral())
+	assert.Equal(t, "eq", left.Operator)
+	assert.Equal(t, "John", left.Right.TokenLiteral())
+
+	// inner operator
+	assert.Equal(t, "and", expression.Operator)
+
+	// inner right
+	right, ok := expression.Right.(*ast.InfixExpression)
+	assert.True(t, ok)
+
+	assert.Equal(t, "Age", right.Left.TokenLiteral())
+	assert.Equal(t, "eq", right.Operator)
+	assert.Equal(t, "10", right.Right.TokenLiteral())
+}
+
+func Test_ParsingFilterStatementWithOr(t *testing.T) {
+	input := `Name eq 'John' or Age eq 10`
+
+	l := lexer.NewLexer(input)
+	p := NewParser(l)
+
+	statement := p.ParseFilter()
+
+	expression := statement.Expression
+	assert.NotNil(t, expression)
+
+	//Left
+	left, ok := expression.Left.(*ast.InfixExpression)
+	assert.True(t, ok)
+
+	assert.Equal(t, "Name", left.Left.TokenLiteral())
+	assert.Equal(t, "eq", left.Operator)
+	assert.Equal(t, "John", left.Right.TokenLiteral())
+
+	// inner operator
+	assert.Equal(t, "or", expression.Operator)
+
+	// inner right
+	right, ok := expression.Right.(*ast.InfixExpression)
+	assert.True(t, ok)
+
+	assert.Equal(t, "Age", right.Left.TokenLiteral())
+	assert.Equal(t, "eq", right.Operator)
+	assert.Equal(t, "10", right.Right.TokenLiteral())
+}
+
+func Test_ParsingFilterStatementWithAndAndOr(t *testing.T) {
 	input := `Name eq 'John' and Age eq 10 or Id eq 10`
 
 	l := lexer.NewLexer(input)

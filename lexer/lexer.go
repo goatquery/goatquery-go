@@ -1,6 +1,12 @@
 package lexer
 
-import "github.com/goatquery/goatquery-go/token"
+import (
+	"strings"
+	"time"
+
+	"github.com/goatquery/goatquery-go/token"
+	"github.com/google/uuid"
+)
 
 type Lexer struct {
 	input        string
@@ -44,17 +50,35 @@ func (l *Lexer) NextToken() token.Token {
 		tok.Type = token.STRING
 		tok.Literal = l.readString()
 	default:
-		if isLetter(l.character) {
+		if isLetter(l.character) || isDigit(l.character) {
 			tok.Literal = l.readIdentifier()
+
+			if isGuid(tok.Literal) {
+				tok.Type = token.GUID
+				return tok
+			}
+
+			if isDigit(tok.Literal[0]) {
+
+				if isDateTime(tok.Literal) {
+					tok.Type = token.DATETIME
+					return tok
+				}
+
+				if strings.HasSuffix(strings.ToLower(tok.Literal), "f") {
+					tok.Type = token.FLOAT
+					return tok
+				}
+
+				tok.Type = token.INT
+				return tok
+			}
+
 			tok.Type = token.IDENT
 			return tok
-		} else if isDigit(l.character) {
-			tok.Literal = l.readNumber()
-			tok.Type = token.INT
-			return tok
-		} else {
-			tok = token.NewToken(token.ILLEGAL, l.character)
 		}
+
+		tok = token.NewToken(token.ILLEGAL, l.character)
 	}
 
 	l.readCharacter()
@@ -70,16 +94,7 @@ func (l *Lexer) skipWhitespace() {
 
 func (l *Lexer) readIdentifier() string {
 	currentPosition := l.position
-	for isLetter(l.character) {
-		l.readCharacter()
-	}
-
-	return l.input[currentPosition:l.position]
-}
-
-func (l *Lexer) readNumber() string {
-	currentPosition := l.position
-	for isDigit(l.character) {
+	for isLetter(l.character) || isDigit(l.character) || l.character == '-' || l.character == ':' || l.character == '.' {
 		l.readCharacter()
 	}
 
@@ -99,10 +114,30 @@ func (l *Lexer) readString() string {
 	return l.input[currentPosition:l.position]
 }
 
+func isGuid(value string) bool {
+	_, err := uuid.Parse(value)
+
+	return err == nil
+}
+
 func isLetter(ch byte) bool {
 	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
 }
 
 func isDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
+}
+
+func isDateTime(value string) bool {
+	_, err := time.Parse(time.RFC3339, value)
+	if err == nil {
+		return true
+	}
+
+	_, err = time.Parse(time.DateOnly, value)
+	if err == nil {
+		return true
+	}
+
+	return false
 }

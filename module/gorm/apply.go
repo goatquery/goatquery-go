@@ -23,14 +23,17 @@ func LogQuery(db *gorm.DB) *gorm.DB {
 	return db
 }
 
-func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc SearchFunc, options *goatquery.QueryOptions) (*gorm.DB, *int64, error) {
+func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, options *goatquery.QueryOptions) (*gorm.DB, *int64, error) {
 	if options != nil && query.Top > options.MaxTop {
 		return nil, nil, fmt.Errorf("The value supplied for the query parameter 'Top' was greater than the maximum top allowed for this resource")
 	}
 
-	v := reflect.ValueOf(model)
-	t := reflect.Indirect(v).Type().Elem()
+	var model T
+
+	// v := reflect.ValueOf(model)
+	t := reflect.TypeOf(model)
 	namer := db.Statement.NamingStrategy
+	tableName := namer.TableName(t.Name())
 
 	// Filter
 	if query.Filter != "" {
@@ -39,7 +42,7 @@ func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc Sea
 
 		statements := p.ParseFilter()
 
-		db = EvaluateFilter(&statements.Expression, db)
+		db = EvaluateFilter(statements.Expression, db, namer, tableName, t)
 	}
 
 	// Search
@@ -61,7 +64,7 @@ func Apply(db *gorm.DB, query goatquery.Query, model interface{}, searchFunc Sea
 		statements := p.ParseOrderBy()
 
 		for _, statement := range statements {
-			property := GetGormColumnName(namer, namer.TableName(t.Name()), t, statement.TokenLiteral())
+			property := GetGormColumnName(namer, tableName, t, statement.TokenLiteral())
 
 			sql := fmt.Sprintf("%s %s", property, statement.Direction)
 
@@ -119,42 +122,59 @@ func GetGormColumnName(namer schema.Namer, tableName string, t reflect.Type, pro
 	return namer.ColumnName(tableName, property)
 }
 
-func EvaluateFilter(exp ast.Expression, db *gorm.DB) *gorm.DB {
+func EvaluateFilter(exp ast.Expression, db *gorm.DB, namer schema.Namer, tableName string, t reflect.Type) *gorm.DB {
 	switch exp := exp.(type) {
 	case *ast.InfixExpression:
 		identifier, ok := exp.Left.(*ast.Identifier)
 		if ok {
-
 			var value interface{}
 
 			switch right := exp.Right.(type) {
-			case *ast.StringLiteral:
+			case *ast.GuidLiteral:
 				value = right.Value
 			case *ast.IntegerLiteral:
 				value = right.Value
+			case *ast.FloatLiteral:
+				value = right.Value
+			case *ast.StringLiteral:
+				value = right.Value
+			case *ast.DateTimeLiteral:
+				value = right.Value
 			}
+
+			property := GetGormColumnName(namer, namer.TableName(t.Name()), t, identifier.TokenLiteral())
 
 			switch strings.ToLower(exp.Operator) {
 			case keywords.EQ:
-				return db.Where(fmt.Sprintf("%s = ?", identifier.TokenLiteral()), value)
+				return db.Where(fmt.Sprintf("%s = ?", property), value)
 			case keywords.NE:
-				return db.Where(fmt.Sprintf("%s <> ?", identifier.TokenLiteral()), value)
+				return db.Where(fmt.Sprintf("%s <> ?", property), value)
 			case keywords.CONTAINS:
 				if str, ok := exp.Right.(*ast.StringLiteral); ok {
-					return db.Where(fmt.Sprintf("%s LIKE ?", identifier.TokenLiteral()), "%"+str.Value+"%")
+					return db.Where(fmt.Sprintf("%s LIKE ?", property), "%"+str.Value+"%")
 				}
+			case keywords.LT:
+				return db.Where(fmt.Sprintf("%s < ?", property), value)
+			case keywords.LTE:
+				return db.Where(fmt.Sprintf("%s <= ?", property), value)
+			case keywords.GT:
+				return db.Where(fmt.Sprintf("%s > ?", property), value)
+			case keywords.GTE:
+				return db.Where(fmt.Sprintf("%s >= ?", property), value)
 			}
 		}
 
+		left := EvaluateFilter(exp.Left, db, namer, tableName, t)
+		right := EvaluateFilter(exp.Right, db, namer, tableName, t)
+
 		switch exp.Operator {
 		case keywords.AND:
-			return EvaluateFilter(exp.Right, EvaluateFilter(exp.Left, db))
+			return left.Where(right)
 		case keywords.OR:
-			left := EvaluateFilter(exp.Left, db)
-			right := EvaluateFilter(exp.Right, db)
-
 			return left.Or(right)
 		}
+
+		break
 	}
 
 	return db

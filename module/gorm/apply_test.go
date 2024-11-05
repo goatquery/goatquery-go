@@ -190,10 +190,10 @@ func Test_OrderBy(t *testing.T) {
 			OrderBy: test.input,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, nil, nil)
+		res, _, err := Apply[User](DB, query, nil, nil)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
@@ -215,7 +215,7 @@ func Test_Count(t *testing.T) {
 			Count: test.input,
 		}
 
-		_, count, err := Apply(DB, query, &User{}, nil, nil)
+		_, count, err := Apply[User](DB, query, nil, nil)
 		assert.NoError(t, err)
 
 		assert.Equal(t, test.expectedCount, count)
@@ -243,10 +243,10 @@ func Test_Search(t *testing.T) {
 			Search: test.input,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, searchFunc, nil)
+		res, _, err := Apply[User](DB, query, searchFunc, nil)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
@@ -262,18 +262,18 @@ func Test_Skip(t *testing.T) {
 		{1, []User{
 			users["Jane"],
 			users["Apple"],
-			users["John"],
+			users["Harry"],
 			users["Doe"],
 			users["Egg"],
 		}},
 		{2, []User{
 			users["Apple"],
-			users["John"],
+			users["Harry"],
 			users["Doe"],
 			users["Egg"],
 		}},
 		{3, []User{
-			users["John"],
+			users["Harry"],
 			users["Doe"],
 			users["Egg"],
 		}},
@@ -293,10 +293,10 @@ func Test_Skip(t *testing.T) {
 			Skip: test.input,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, nil, nil)
+		res, _, err := Apply[User](DB, query, nil, nil)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
@@ -325,10 +325,10 @@ func Test_Top(t *testing.T) {
 			Top: test.input,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, nil, nil)
+		res, _, err := Apply[User](DB, query, nil, nil)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
@@ -358,10 +358,10 @@ func Test_TopWithMaxTop(t *testing.T) {
 			MaxTop: 4,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, nil, &options)
+		res, _, err := Apply[User](DB, query, nil, &options)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
@@ -385,7 +385,7 @@ func Test_TopWithMaxTopReturnsError(t *testing.T) {
 			MaxTop: 4,
 		}
 
-		_, _, err := Apply(DB, query, &User{}, nil, &options)
+		_, _, err := Apply[User](DB, query, nil, &options)
 		assert.Error(t, err)
 	}
 }
@@ -412,12 +412,12 @@ func Test_Filter(t *testing.T) {
 			users["Doe"],
 			users["Egg"],
 		}},
-		{"Age eq 1 and firstName eq 'Harry' or Age eq 2", []User{
+		{"Age eq 1 and firstname eq 'Harry' or Age eq 2", []User{
 			users["John"],
 			users["Apple"],
 			users["Harry"],
 		}},
-		{"Age eq 1 or Age eq 2 or firstName eq 'Egg'", []User{
+		{"Age eq 1 or Age eq 2 or firstname eq 'Egg'", []User{
 			users["John"],
 			users["Jane"],
 			users["Apple"],
@@ -430,28 +430,28 @@ func Test_Filter(t *testing.T) {
 			users["Apple"],
 			users["Harry"],
 		}},
-		{"firstName contains 'a'", []User{
+		{"firstname contains 'a'", []User{
 			users["Jane"],
 			users["Apple"],
 			users["Harry"],
 		}},
-		{"Age ne 1 and firstName contains 'a'", []User{
+		{"Age ne 1 and firstname contains 'a'", []User{
 			users["Apple"],
 		}},
-		{"Age ne 1 and firstName contains 'a' or firstName eq 'Apple'", []User{
+		{"Age ne 1 and firstname contains 'a' or firstname eq 'Apple'", []User{
 			users["Apple"],
 		}},
-		{"Firstname eq 'John' and Age eq 2 or Age eq 3", []User{
+		{"firstname eq 'John' and Age eq 2 or Age eq 3", []User{
 			users["John"],
 			users["Doe"],
 			users["Egg"],
 		}},
-		{"(Firstname eq 'John' and Age eq 2) or Age eq 3", []User{
+		{"(firstname eq 'John' and Age eq 2) or Age eq 3", []User{
 			users["John"],
 			users["Doe"],
 			users["Egg"],
 		}},
-		{"Firstname eq 'John' and (Age eq 2 or Age eq 3)", []User{
+		{"firstname eq 'John' and (Age eq 2 or Age eq 3)", []User{
 			users["John"],
 		}},
 		{"(Firstname eq 'John' and Age eq 2 or Age eq 3)", []User{
@@ -493,8 +493,47 @@ func Test_Filter(t *testing.T) {
 			users["John"],
 			users["Apple"],
 		}},
-		{"balanceDecimal eq 1.50m", []User{
+		{"balance eq 1.50f", []User{
 			users["John"],
+		}},
+		{"balance gt 1f", []User{
+			users["John"], users["Apple"], users["Egg"],
+		}},
+		{"balance gt 0.50f", []User{
+			users["John"], users["Apple"], users["Harry"], users["Egg"],
+		}},
+		{"balance eq 0.5372958205929493f", []User{
+			users["Harry"],
+		}},
+		{"balance eq 1334534453453433.33435443343231235652f", []User{
+			users["Egg"],
+		}},
+		{"balance eq 1204050.98f", []User{
+			users["Apple"],
+		}},
+		{"balance gt 2204050f", []User{
+			users["Egg"],
+		}},
+		{"dateOfBirth eq 2000-01-01", []User{
+			users["Egg"],
+		}},
+		{"dateOfBirth lt 2010-01-01", []User{
+			users["John"], users["Apple"], users["Harry"], users["Egg"],
+		}},
+		{"dateOfBirth lte 2002-08-01", []User{
+			users["Apple"], users["Harry"], users["Egg"],
+		}},
+		{"dateOfBirth gt 2000-08-01 and dateOfBirth lt 2023-01-01", []User{
+			users["John"], users["Jane"], users["Harry"],
+		}},
+		{"dateOfBirth eq 2023-07-26T12:00:30Z", []User{
+			users["Doe"],
+		}},
+		{"dateOfBirth gte 2000-01-01", []User{
+			users["John"], users["Jane"], users["Harry"], users["Doe"], users["Egg"],
+		}},
+		{"dateOfBirth gte 2000-01-01 and dateOfBirth lte 2020-05-09T15:29:59Z", []User{
+			users["John"], users["Harry"], users["Egg"],
 		}},
 	}
 
@@ -503,15 +542,26 @@ func Test_Filter(t *testing.T) {
 			Filter: test.input,
 		}
 
-		var output []User
-		res, _, err := Apply(DB, query, &output, nil, nil)
+		res, _, err := Apply[User](DB, query, nil, nil)
 		assert.NoError(t, err)
 
+		var output []User
 		err = res.Find(&output).Error
 		assert.NoError(t, err)
 
 		assert.Equal(t, test.expected, output)
 	}
+}
+
+func Test_InvalidFilterReturnsError(t *testing.T) {
+	input := `NonExistentProperty eq 'John'`
+
+	query := goatquery.Query{
+		Filter: input,
+	}
+
+	_, _, err := Apply[User](DB, query, nil, nil)
+	assert.Error(t, err)
 }
 
 func makePointer[T any](v T) *T {

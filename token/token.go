@@ -4,9 +4,12 @@ const (
 	ILLEGAL = "ILLEGAL"
 	EOF     = "EOF"
 
-	IDENT  = "IDENT"
-	INT    = "INT"
-	STRING = "STRING"
+	IDENT    = "IDENT"
+	INT      = "INT"
+	STRING   = "STRING"
+	GUID     = "GUID"
+	FLOAT    = "FLOAT"
+	DATETIME = "DATETIME"
 
 	LPAREN = "LPAREN"
 	RPAREN = "RPAREN"

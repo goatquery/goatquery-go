@@ -4,10 +4,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/goatquery/goatquery-go"
 	"github.com/goatquery/goatquery-go/ast"
 	"github.com/goatquery/goatquery-go/keywords"
 	"github.com/goatquery/goatquery-go/lexer"
 	"github.com/goatquery/goatquery-go/token"
+	"github.com/google/uuid"
 )
 
 type Parser struct {
@@ -63,7 +65,7 @@ func (p *Parser) ParseFilter() *ast.ExpressionStatement {
 	return statement
 }
 
-func (p *Parser) ParseExpression(precedence int) ast.InfixExpression {
+func (p *Parser) ParseExpression(precedence int) *ast.InfixExpression {
 	var left *ast.InfixExpression
 
 	if p.currentTokenIs(token.LPAREN) {
@@ -82,13 +84,13 @@ func (p *Parser) ParseExpression(precedence int) ast.InfixExpression {
 			p.NextToken()
 
 			right := p.ParseExpression(currentPrecedence)
-			left.Right = &right
+			left.Right = right
 		} else {
 			break
 		}
 	}
 
-	return *left
+	return left
 }
 
 func (p *Parser) ParseGroupedExpression() *ast.InfixExpression {
@@ -100,13 +102,13 @@ func (p *Parser) ParseGroupedExpression() *ast.InfixExpression {
 		return nil
 	}
 
-	return &exp
+	return exp
 }
 
 func (p *Parser) ParseFilterStatement() *ast.InfixExpression {
 	identifer := ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
 
-	if !p.peekIdentiferIn(keywords.EQ, keywords.NE, keywords.CONTAINS) {
+	if !p.peekIdentiferIn(keywords.EQ, keywords.NE, keywords.CONTAINS, keywords.LT, keywords.LTE, keywords.GT, keywords.GTE) {
 		return nil
 	}
 
@@ -114,7 +116,7 @@ func (p *Parser) ParseFilterStatement() *ast.InfixExpression {
 
 	statement := ast.InfixExpression{Token: p.currentToken, Left: &identifer, Operator: p.currentToken.Literal}
 
-	if !p.peekTokenIs(token.STRING) && !p.peekTokenIs(token.INT) {
+	if !p.peekTokenIn(token.STRING, token.INT, token.GUID, token.DATETIME, token.FLOAT) {
 		return nil
 	}
 
@@ -125,6 +127,11 @@ func (p *Parser) ParseFilterStatement() *ast.InfixExpression {
 	}
 
 	switch p.currentToken.Type {
+	case token.GUID:
+		val, err := uuid.Parse(p.currentToken.Literal)
+		if err == nil {
+			statement.Right = &ast.GuidLiteral{Token: p.currentToken, Value: val}
+		}
 	case token.STRING:
 		statement.Right = &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Literal}
 	case token.INT:
@@ -136,6 +143,29 @@ func (p *Parser) ParseFilterStatement() *ast.InfixExpression {
 		}
 
 		literal.Value = value
+
+		statement.Right = literal
+	case token.FLOAT:
+		literal := &ast.FloatLiteral{Token: p.currentToken}
+
+		literalWithoutSuffix := strings.TrimSuffix(p.currentToken.Literal, "f")
+		value, err := strconv.ParseFloat(literalWithoutSuffix, 64)
+		if err != nil {
+			return nil
+		}
+
+		literal.Value = value
+
+		statement.Right = literal
+	case token.DATETIME:
+		literal := &ast.DateTimeLiteral{Token: p.currentToken}
+
+		value, err := goatquery.ParseDateTime(p.currentToken.Literal)
+		if err != nil {
+			return nil
+		}
+
+		literal.Value = *value
 
 		statement.Right = literal
 	}
@@ -164,6 +194,16 @@ func (p *Parser) currentTokenIs(t token.TokenType) bool {
 
 func (p *Parser) peekTokenIs(t token.TokenType) bool {
 	return p.peekToken.Type == t
+}
+
+func (p *Parser) peekTokenIn(tokens ...token.TokenType) bool {
+	for _, token := range tokens {
+		if p.peekToken.Type == token {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p *Parser) peekIdentiferIs(identifier string) bool {

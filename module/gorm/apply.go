@@ -27,11 +27,13 @@ func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, opt
 	if options != nil && query.Top > options.MaxTop {
 		return nil, nil, fmt.Errorf("The value supplied for the query parameter 'Top' was greater than the maximum top allowed for this resource")
 	}
+	var err error
 
 	var model T
 
 	// v := reflect.ValueOf(model)
 	t := reflect.TypeOf(model)
+
 	namer := db.Statement.NamingStrategy
 	tableName := namer.TableName(t.Name())
 
@@ -42,7 +44,10 @@ func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, opt
 
 		statements := p.ParseFilter()
 
-		db = EvaluateFilter(statements.Expression, db, namer, tableName, t)
+		db, err = EvaluateFilter(statements.Expression, db, namer, tableName, t)
+		if err != nil {
+			return db, nil, err
+		}
 	}
 
 	// Search
@@ -64,9 +69,12 @@ func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, opt
 		statements := p.ParseOrderBy()
 
 		for _, statement := range statements {
-			property := GetGormColumnName(namer, tableName, t, statement.TokenLiteral())
+			property, err := GetGormColumnName(namer, tableName, t, statement.TokenLiteral())
+			if err != nil {
+				return db, &count, err
+			}
 
-			sql := fmt.Sprintf("%s %s", property, statement.Direction)
+			sql := fmt.Sprintf("%s %s", *property, statement.Direction)
 
 			db = db.Order(sql)
 		}
@@ -93,13 +101,14 @@ func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, opt
 	return db, nil, nil
 }
 
-func GetGormColumnName(namer schema.Namer, tableName string, t reflect.Type, property string) string {
+func GetGormColumnName(namer schema.Namer, tableName string, t reflect.Type, property string) (*string, error) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 
 		if field.Anonymous {
-			if columnName := GetGormColumnName(namer, tableName, field.Type, property); columnName != "" {
-				return columnName
+			columnName, err := GetGormColumnName(namer, tableName, field.Type, property)
+			if err == nil && *columnName != "" {
+				return columnName, nil
 			}
 			continue
 		}
@@ -112,17 +121,19 @@ func GetGormColumnName(namer schema.Namer, tableName string, t reflect.Type, pro
 		if strings.EqualFold(propertyName, property) {
 			settings := schema.ParseTagSetting(field.Tag.Get("gorm"), ";")
 			if settings["COLUMN"] != "" {
-				return settings["COLUMN"]
+				col := settings["COLUMN"]
+				return &col, nil
 			}
 
-			return namer.ColumnName(tableName, field.Name)
+			col := namer.ColumnName(tableName, field.Name)
+			return &col, nil
 		}
 	}
 
-	return namer.ColumnName(tableName, property)
+	return nil, fmt.Errorf("Property doesn't exist")
 }
 
-func EvaluateFilter(exp ast.Expression, db *gorm.DB, namer schema.Namer, tableName string, t reflect.Type) *gorm.DB {
+func EvaluateFilter(exp ast.Expression, db *gorm.DB, namer schema.Namer, tableName string, t reflect.Type) (*gorm.DB, error) {
 	switch exp := exp.(type) {
 	case *ast.InfixExpression:
 		identifier, ok := exp.Left.(*ast.Identifier)
@@ -142,40 +153,49 @@ func EvaluateFilter(exp ast.Expression, db *gorm.DB, namer schema.Namer, tableNa
 				value = right.Value
 			}
 
-			property := GetGormColumnName(namer, namer.TableName(t.Name()), t, identifier.TokenLiteral())
+			property, err := GetGormColumnName(namer, namer.TableName(t.Name()), t, identifier.TokenLiteral())
+			if err != nil {
+				return db, err
+			}
 
 			switch strings.ToLower(exp.Operator) {
 			case keywords.EQ:
-				return db.Where(fmt.Sprintf("%s = ?", property), value)
+				return db.Where(fmt.Sprintf("%s = ?", *property), value), nil
 			case keywords.NE:
-				return db.Where(fmt.Sprintf("%s <> ?", property), value)
+				return db.Where(fmt.Sprintf("%s <> ?", *property), value), nil
 			case keywords.CONTAINS:
 				if str, ok := exp.Right.(*ast.StringLiteral); ok {
-					return db.Where(fmt.Sprintf("%s LIKE ?", property), "%"+str.Value+"%")
+					return db.Where(fmt.Sprintf("%s LIKE ?", *property), "%"+str.Value+"%"), nil
 				}
 			case keywords.LT:
-				return db.Where(fmt.Sprintf("%s < ?", property), value)
+				return db.Where(fmt.Sprintf("%s < ?", *property), value), nil
 			case keywords.LTE:
-				return db.Where(fmt.Sprintf("%s <= ?", property), value)
+				return db.Where(fmt.Sprintf("%s <= ?", *property), value), nil
 			case keywords.GT:
-				return db.Where(fmt.Sprintf("%s > ?", property), value)
+				return db.Where(fmt.Sprintf("%s > ?", *property), value), nil
 			case keywords.GTE:
-				return db.Where(fmt.Sprintf("%s >= ?", property), value)
+				return db.Where(fmt.Sprintf("%s >= ?", *property), value), nil
 			}
 		}
 
-		left := EvaluateFilter(exp.Left, db, namer, tableName, t)
-		right := EvaluateFilter(exp.Right, db, namer, tableName, t)
+		left, err := EvaluateFilter(exp.Left, db, namer, tableName, t)
+		if err != nil {
+			return db, err
+		}
+		right, err := EvaluateFilter(exp.Right, db, namer, tableName, t)
+		if err != nil {
+			return db, err
+		}
 
 		switch exp.Operator {
 		case keywords.AND:
-			return left.Where(right)
+			return left.Where(right), nil
 		case keywords.OR:
-			return left.Or(right)
+			return left.Or(right), nil
 		}
 
 		break
 	}
 
-	return db
+	return db, nil
 }

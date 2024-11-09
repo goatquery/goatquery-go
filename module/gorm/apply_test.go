@@ -25,6 +25,7 @@ type User struct {
 	Firstname   string
 	Balance     *float64
 	DateOfBirth time.Time
+	JsonProp    string `json:"random_json_name"`
 }
 
 var DB *gorm.DB
@@ -50,7 +51,7 @@ func timeMustParse(value string) time.Time {
 }
 
 var users = map[string]User{
-	"John":  {Base: Base{Age: 2}, Firstname: "John", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2004-01-31 23:59:59"), Balance: makePointer(1.50)},
+	"John":  {Base: Base{Age: 2}, Firstname: "John", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2004-01-31 23:59:59"), Balance: makePointer(1.50), JsonProp: "user_john"},
 	"Jane":  {Base: Base{Age: 1}, Firstname: "Jane", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("2020-05-09 15:30:00"), Balance: makePointer(0.0)},
 	"Apple": {Base: Base{Age: 2}, Firstname: "Apple", UserId: uuid.MustParse("58cdeca3-645b-457c-87aa-7d5f87734255"), DateOfBirth: timeMustParse("1980-12-31 00:00:01"), Balance: makePointer(1204050.98)},
 	"Harry": {Base: Base{Age: 1}, Firstname: "Harry", UserId: uuid.MustParse("e4c7772b-8947-4e46-98ed-644b417d2a08"), DateOfBirth: timeMustParse("2002-08-01"), Balance: makePointer(0.5372958205929493)},
@@ -60,7 +61,7 @@ var users = map[string]User{
 
 func setup() {
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error),
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 
 	if err != nil {
@@ -562,6 +563,33 @@ func Test_InvalidFilterReturnsError(t *testing.T) {
 
 	_, _, err := Apply[User](DB, query, nil, nil)
 	assert.Error(t, err)
+}
+
+func Test_Filter_WithCustomJsonTag(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []User
+	}{
+		{"random_json_name eq 'user_john'", []User{
+			users["John"],
+		}},
+	}
+
+	for _, test := range tests {
+
+		query := goatquery.Query{
+			Filter: test.input,
+		}
+
+		res, _, err := Apply[User](DB, query, nil, nil)
+		assert.NoError(t, err)
+
+		var output []User
+		err = res.Find(&output).Error
+		assert.NoError(t, err)
+
+		assert.Equal(t, test.expected, output)
+	}
 }
 
 func makePointer[T any](v T) *T {

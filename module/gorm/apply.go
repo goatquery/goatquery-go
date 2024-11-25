@@ -31,7 +31,6 @@ func Apply[T any](db *gorm.DB, query goatquery.Query, searchFunc SearchFunc, opt
 
 	var model T
 
-	// v := reflect.ValueOf(model)
 	t := reflect.TypeOf(model)
 
 	namer := db.Statement.NamingStrategy

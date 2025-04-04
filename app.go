@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
@@ -53,12 +54,15 @@ func Apply(db *gorm.DB, query Query, maxTop *int, searchFunc func(db *gorm.DB, s
 
 			property = GetGormColumnNameByJsonTag(namer, tableName, modelType, property)
 
-			if ok && field.Type.Kind() == reflect.Bool {
+			switch {
+			case ok && field.Type.Kind() == reflect.Bool:
 				where.WriteString(fmt.Sprintf("%s %s %s", property, filterOperations[operand], value))
-			} else if strings.EqualFold(operand, "contains") {
+			case strings.EqualFold(operand, "contains"):
 				valueWithoutQuotes := getValueBetweenQuotes(value)
 				where.WriteString(fmt.Sprintf("%s %s '%%%s%%'", property, filterOperations[operand], valueWithoutQuotes))
-			} else {
+			case field.Type == reflect.TypeOf(uuid.UUID{}):
+				where.WriteString(fmt.Sprintf("%s %s %s", property, filterOperations[operand], value))
+			default:
 				where.WriteString(fmt.Sprintf("LOWER(%s) %s LOWER(%s)", property, filterOperations[operand], value))
 			}
 		}

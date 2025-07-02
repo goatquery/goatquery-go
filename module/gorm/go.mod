@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/glebarez/sqlite v1.11.0
-	github.com/goatquery/goatquery-go v0.5.0
+	github.com/goatquery/goatquery-go v0.5.0-rc.7
 	github.com/stretchr/testify v1.9.0
 	gorm.io/gorm v1.25.12
 )

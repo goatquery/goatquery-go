@@ -1,17 +1,26 @@
+// Package parser produces an AST from the token stream. Most consumers should use
+// the goatquery root package or a module instead of importing this package directly.
 package parser
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
-	"github.com/goatquery/goatquery-go"
 	"github.com/goatquery/goatquery-go/ast"
-	"github.com/goatquery/goatquery-go/keywords"
 	"github.com/goatquery/goatquery-go/lexer"
 	"github.com/goatquery/goatquery-go/token"
 	"github.com/google/uuid"
 )
 
+const (
+	precedenceLowest = 0
+	precedenceOr     = 1
+	precedenceAnd    = 2
+)
+
+// Parser produces an AST from a sequence of tokens.
 type Parser struct {
 	lexer *lexer.Lexer
 
@@ -19,173 +28,316 @@ type Parser struct {
 	peekToken    token.Token
 }
 
-func NewParser(lexer *lexer.Lexer) *Parser {
-	p := &Parser{lexer: lexer}
-
-	p.NextToken()
-	p.NextToken()
-
+// NewParser returns a Parser that reads from the given Lexer.
+func NewParser(l *lexer.Lexer) *Parser {
+	p := &Parser{lexer: l}
+	p.nextToken()
+	p.nextToken()
 	return p
 }
 
-func (p *Parser) NextToken() {
+func (p *Parser) nextToken() {
 	p.currentToken = p.peekToken
 	p.peekToken = p.lexer.NextToken()
 }
 
-func (p *Parser) ParseOrderBy() []ast.OrderByStatement {
+// ParseOrderBy parses an orderby clause into a list of statements.
+func (p *Parser) ParseOrderBy() ([]ast.OrderByStatement, error) {
 	statements := []ast.OrderByStatement{}
 
 	for !p.currentTokenIs(token.EOF) {
 		if !p.currentTokenIs(token.IDENT) {
-			p.NextToken()
-			continue
+			return nil, fmt.Errorf("Expected property name in orderby, got '%s'.", p.currentToken.Literal)
 		}
 
-		statement := &ast.OrderByStatement{Token: p.currentToken, Direction: ast.Ascending}
+		statement := ast.OrderByStatement{
+			Token:     p.currentToken,
+			Segments:  []string{p.currentToken.Literal},
+			Direction: ast.Ascending,
+		}
 
-		if p.peekIdentiferIs(keywords.DESC) {
+		for p.peekTokenIs(token.SLASH) {
+			p.nextToken()
+			p.nextToken()
+			if !p.currentTokenIs(token.IDENT) {
+				return nil, fmt.Errorf("Expected identifier after '/' in orderby path.")
+			}
+			statement.Segments = append(statement.Segments, p.currentToken.Literal)
+		}
+
+		// Check for direction
+		if p.peekIdentifierIs(token.Desc) {
 			statement.Direction = ast.Descending
+			p.nextToken()
+		} else if p.peekIdentifierIs(token.Asc) {
+			p.nextToken()
 		}
 
-		p.NextToken()
+		statements = append(statements, statement)
+		p.nextToken()
 
-		statements = append(statements, *statement)
-
-		p.NextToken()
+		if p.currentTokenIs(token.COMMA) {
+			p.nextToken()
+		}
 	}
 
-	return statements
+	return statements, nil
 }
 
-func (p *Parser) ParseFilter() *ast.ExpressionStatement {
-	statement := &ast.ExpressionStatement{Token: p.currentToken}
-	statement.Expression = p.ParseExpression(0)
+// ParseFilter parses a filter expression.
+func (p *Parser) ParseFilter() (ast.Expression, error) {
+	if p.currentTokenIs(token.EOF) {
+		return nil, fmt.Errorf("Empty filter expression.")
+	}
 
-	return statement
+	return p.parseExpression(precedenceLowest)
 }
 
-func (p *Parser) ParseExpression(precedence int) *ast.InfixExpression {
-	var left *ast.InfixExpression
+func (p *Parser) parseExpression(precedence int) (ast.Expression, error) {
+	var left ast.Expression
+	var err error
 
 	if p.currentTokenIs(token.LPAREN) {
-		left = p.ParseGroupedExpression()
+		left, err = p.parseGroupedExpression()
 	} else {
-		left = p.ParseFilterStatement()
+		left, err = p.parseFilterStatement()
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	p.NextToken()
+	p.nextToken()
 
-	for !p.currentTokenIs(token.EOF) && precedence < p.GetPrecedence(p.currentToken.Type) {
-		if p.currentIdentiferIs(keywords.AND) || p.currentIdentiferIs(keywords.OR) {
-			left = &ast.InfixExpression{Token: p.currentToken, Left: left, Operator: p.currentToken.Literal}
-			currentPrecedence := p.GetPrecedence(p.currentToken.Type)
-
-			p.NextToken()
-
-			right := p.ParseExpression(currentPrecedence)
-			left.Right = right
-		} else {
+	for !p.currentTokenIs(token.EOF) && precedence < p.getPrecedence() {
+		if !p.currentIdentifierIs(token.And) && !p.currentIdentifierIs(token.Or) {
 			break
 		}
+
+		operator := p.currentToken
+		currentPrecedence := p.getPrecedence()
+		p.nextToken()
+
+		right, err := p.parseExpression(currentPrecedence)
+		if err != nil {
+			return nil, err
+		}
+
+		left = &ast.InfixExpression{
+			Token:    operator,
+			Left:     left,
+			Operator: operator.Literal,
+			Right:    right,
+		}
 	}
 
-	return left
+	return left, nil
 }
 
-func (p *Parser) ParseGroupedExpression() *ast.InfixExpression {
-	p.NextToken()
+func (p *Parser) parseGroupedExpression() (ast.Expression, error) {
+	p.nextToken()
 
-	exp := p.ParseExpression(0)
+	exp, err := p.parseExpression(precedenceLowest)
+	if err != nil {
+		return nil, err
+	}
 
 	if !p.currentTokenIs(token.RPAREN) {
-		return nil
+		return nil, fmt.Errorf("Expected ')' to close grouped expression.")
 	}
 
-	return exp
+	return exp, nil
 }
 
-func (p *Parser) ParseFilterStatement() *ast.InfixExpression {
-	identifer := ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
-
-	if !p.peekIdentiferIn(keywords.EQ, keywords.NE, keywords.CONTAINS, keywords.LT, keywords.LTE, keywords.GT, keywords.GTE) {
-		return nil
+func (p *Parser) parseFilterStatement() (ast.Expression, error) {
+	if !p.currentTokenIs(token.IDENT) {
+		return nil, fmt.Errorf("Expected identifier, got '%s'.", p.currentToken.Type)
 	}
 
-	p.NextToken()
+	firstToken := p.currentToken
+	segments := []string{p.currentToken.Literal}
 
-	statement := ast.InfixExpression{Token: p.currentToken, Left: &identifer, Operator: p.currentToken.Literal}
+	for p.peekTokenIs(token.SLASH) {
+		p.nextToken()
+		p.nextToken()
 
-	if !p.peekTokenIn(token.STRING, token.INT, token.GUID, token.DATETIME, token.FLOAT) {
-		return nil
+		if !p.currentTokenIs(token.IDENT) {
+			return nil, fmt.Errorf("Expected identifier after '/' in property path.")
+		}
+
+		segments = append(segments, p.currentToken.Literal)
+
+		lower := strings.ToLower(p.currentToken.Literal)
+		if (lower == token.Any || lower == token.All) && p.peekTokenIs(token.LPAREN) {
+			p.nextToken()
+
+			collectionSegments := segments[:len(segments)-1]
+			var prop ast.Expression
+			if len(collectionSegments) == 1 {
+				prop = &ast.Identifier{Token: firstToken}
+			} else {
+				prop = &ast.PropertyPath{Token: firstToken, Segments: collectionSegments}
+			}
+
+			return p.parseLambdaExpression(prop, lower)
+		}
 	}
 
-	p.NextToken()
-
-	if strings.EqualFold(statement.Operator, keywords.CONTAINS) && p.currentToken.Type != token.STRING {
-		return nil
+	var property ast.Expression
+	if len(segments) == 1 {
+		property = &ast.Identifier{Token: firstToken}
+	} else {
+		property = &ast.PropertyPath{Token: firstToken, Segments: segments}
 	}
 
+	if !p.peekIdentifierIn(token.Eq, token.Ne, token.Contains, token.Lt, token.Lte, token.Gt, token.Gte) {
+		return nil, fmt.Errorf("Expected comparison operator, got '%s'.", p.peekToken.Literal)
+	}
+
+	p.nextToken()
+	operator := p.currentToken
+
+	if strings.EqualFold(operator.Literal, token.Contains) {
+		if !p.peekTokenIs(token.STRING) {
+			return nil, fmt.Errorf("Operator 'contains' requires a string value.")
+		}
+	}
+
+	opLower := strings.ToLower(operator.Literal)
+	if opLower == token.Lt || opLower == token.Lte || opLower == token.Gt || opLower == token.Gte {
+		if p.peekTokenIs(token.NULL) {
+			return nil, fmt.Errorf("Operator '%s' does not support null values.", operator.Literal)
+		}
+		if !p.peekTokenIn(token.INT, token.DOUBLE, token.DATETIME, token.DATE) {
+			return nil, fmt.Errorf("Value must be a numeric or date type when using '%s' operator.", operator.Literal)
+		}
+	}
+
+	if !p.peekTokenIn(token.STRING, token.INT, token.DOUBLE, token.UUID, token.DATETIME, token.DATE, token.NULL, token.BOOLEAN) {
+		return nil, fmt.Errorf("Expected value after operator '%s', got '%s'.", operator.Literal, p.peekToken.Literal)
+	}
+
+	p.nextToken()
+
+	right, err := p.parseLiteral()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.InfixExpression{
+		Token:    operator,
+		Left:     property,
+		Operator: operator.Literal,
+		Right:    right,
+	}, nil
+}
+
+func (p *Parser) parseLambdaExpression(collectionProp ast.Expression, functionName string) (ast.Expression, error) {
+	lambdaToken := p.currentToken
+	p.nextToken()
+
+	if !p.currentTokenIs(token.IDENT) {
+		return nil, fmt.Errorf("Expected lambda parameter name, got '%s'.", p.currentToken.Type)
+	}
+
+	paramName := p.currentToken.Literal
+
+	p.nextToken()
+	if !p.currentTokenIs(token.COLON) {
+		return nil, fmt.Errorf("Expected ':' after lambda parameter '%s'.", paramName)
+	}
+
+	p.nextToken()
+
+	body, err := p.parseExpression(precedenceLowest)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse lambda body: %w", err)
+	}
+
+	if !p.currentTokenIs(token.RPAREN) {
+		return nil, fmt.Errorf("Expected ')' to close lambda expression.")
+	}
+
+	return &ast.LambdaExpression{
+		Token:     lambdaToken,
+		Property:  collectionProp,
+		Function:  functionName,
+		Parameter: paramName,
+		Body:      body,
+	}, nil
+}
+
+func (p *Parser) parseLiteral() (ast.Expression, error) {
 	switch p.currentToken.Type {
-	case token.GUID:
-		val, err := uuid.Parse(p.currentToken.Literal)
-		if err == nil {
-			statement.Right = &ast.GuidLiteral{Token: p.currentToken, Value: val}
-		}
 	case token.STRING:
-		statement.Right = &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Literal}
+		return &ast.StringLiteral{Token: p.currentToken, Value: p.currentToken.Literal}, nil
+
 	case token.INT:
-		literal := &ast.IntegerLiteral{Token: p.currentToken}
-
-		value, err := strconv.ParseInt(p.currentToken.Literal, 0, 64)
+		value, err := strconv.ParseInt(p.currentToken.Literal, 10, 64)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("'%s' is not a valid number.", p.currentToken.Literal)
 		}
+		return &ast.IntegerLiteral{Token: p.currentToken, Value: value}, nil
 
-		literal.Value = value
-
-		statement.Right = literal
-	case token.FLOAT:
-		literal := &ast.FloatLiteral{Token: p.currentToken}
-
-		literalWithoutSuffix := strings.TrimSuffix(p.currentToken.Literal, "f")
-		value, err := strconv.ParseFloat(literalWithoutSuffix, 64)
+	case token.DOUBLE:
+		value, err := strconv.ParseFloat(p.currentToken.Literal, 64)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("'%s' is not a valid number.", p.currentToken.Literal)
 		}
+		return &ast.FloatLiteral{Token: p.currentToken, Value: value}, nil
 
-		literal.Value = value
+	case token.UUID:
+		value, err := uuid.Parse(p.currentToken.Literal)
+		if err != nil {
+			return nil, fmt.Errorf("Could not parse UUID '%s': %w.", p.currentToken.Literal, err)
+		}
+		return &ast.UUIDLiteral{Token: p.currentToken, Value: value}, nil
 
-		statement.Right = literal
 	case token.DATETIME:
-		literal := &ast.DateTimeLiteral{Token: p.currentToken}
-
-		value, err := goatquery.ParseDateTime(p.currentToken.Literal)
+		value, err := parseDateTime(p.currentToken.Literal)
 		if err != nil {
-			return nil
+			return nil, fmt.Errorf("Could not parse datetime '%s': %w.", p.currentToken.Literal, err)
 		}
+		return &ast.DateTimeLiteral{Token: p.currentToken, Value: value}, nil
 
-		literal.Value = *value
+	case token.DATE:
+		value, err := time.Parse(time.DateOnly, p.currentToken.Literal)
+		if err != nil {
+			return nil, fmt.Errorf("Could not parse date '%s': %w.", p.currentToken.Literal, err)
+		}
+		return &ast.DateLiteral{Token: p.currentToken, Value: value}, nil
 
-		statement.Right = literal
+	case token.NULL:
+		return &ast.NullLiteral{Token: p.currentToken}, nil
+
+	case token.BOOLEAN:
+		value := strings.EqualFold(p.currentToken.Literal, token.True)
+		return &ast.BooleanLiteral{Token: p.currentToken, Value: value}, nil
+
+	default:
+		return nil, fmt.Errorf("Unexpected token type '%s' for literal value.", p.currentToken.Type)
 	}
-
-	return &statement
 }
 
-func (p *Parser) GetPrecedence(t token.TokenType) int {
-	switch t {
-	case token.IDENT:
-		if p.currentIdentiferIs(keywords.AND) {
-			return 2
-		}
+func parseDateTime(value string) (time.Time, error) {
+	if t, err := time.Parse(time.RFC3339, value); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("Could not parse datetime '%s'.", value)
+}
 
-		if p.currentIdentiferIs(keywords.OR) {
-			return 1
+func (p *Parser) getPrecedence() int {
+	if p.currentTokenIs(token.IDENT) {
+		if p.currentIdentifierIs(token.And) {
+			return precedenceAnd
+		}
+		if p.currentIdentifierIs(token.Or) {
+			return precedenceOr
 		}
 	}
-
-	return 0
+	return precedenceLowest
 }
 
 func (p *Parser) currentTokenIs(t token.TokenType) bool {
@@ -196,34 +348,31 @@ func (p *Parser) peekTokenIs(t token.TokenType) bool {
 	return p.peekToken.Type == t
 }
 
-func (p *Parser) peekTokenIn(tokens ...token.TokenType) bool {
-	for _, token := range tokens {
-		if p.peekToken.Type == token {
+func (p *Parser) peekTokenIn(types ...token.TokenType) bool {
+	for _, t := range types {
+		if p.peekToken.Type == t {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (p *Parser) peekIdentiferIs(identifier string) bool {
+func (p *Parser) peekIdentifierIs(identifier string) bool {
 	return p.peekToken.Type == token.IDENT && strings.EqualFold(p.peekToken.Literal, identifier)
 }
 
-func (p *Parser) peekIdentiferIn(identifiers ...string) bool {
+func (p *Parser) peekIdentifierIn(identifiers ...string) bool {
 	if p.peekToken.Type != token.IDENT {
 		return false
 	}
-
-	for _, identifier := range identifiers {
-		if strings.EqualFold(p.peekToken.Literal, identifier) {
+	for _, id := range identifiers {
+		if strings.EqualFold(p.peekToken.Literal, id) {
 			return true
 		}
 	}
-
 	return false
 }
 
-func (p *Parser) currentIdentiferIs(identifier string) bool {
+func (p *Parser) currentIdentifierIs(identifier string) bool {
 	return p.currentToken.Type == token.IDENT && strings.EqualFold(p.currentToken.Literal, identifier)
 }

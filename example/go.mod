@@ -1,15 +1,16 @@
-module github.com/goatquery/goatquery-go/module/gorm
+module github.com/goatquery/goatquery-go/example
 
 go 1.26
 
 require (
+	github.com/brianvoe/gofakeit/v7 v7.14.1
 	github.com/goatquery/goatquery-go v0.5.0-rc.7
+	github.com/goatquery/goatquery-go/module/gorm v0.0.0
 	github.com/google/uuid v1.6.0
-	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0
 	gorm.io/driver/postgres v1.6.0
-	gorm.io/gorm v1.25.12
+	gorm.io/gorm v1.30.0
 )
 
 require (
@@ -56,6 +57,7 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/shirou/gopsutil/v4 v4.26.3 // indirect
 	github.com/sirupsen/logrus v1.9.4 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tklauser/go-sysconf v0.3.16 // indirect
 	github.com/tklauser/numcpus v0.11.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
@@ -71,4 +73,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/goatquery/goatquery-go => ../..
+replace (
+	github.com/goatquery/goatquery-go => ..
+	github.com/goatquery/goatquery-go/module/gorm => ../module/gorm
+)

@@ -14,12 +14,6 @@ type Node interface {
 	TokenLiteral() string
 }
 
-// Statement is a node that represents a statement.
-type Statement interface {
-	Node
-	statementNode()
-}
-
 // Expression is a node that represents an expression.
 type Expression interface {
 	Node
@@ -41,9 +35,6 @@ type OrderByStatement struct {
 	Direction OrderByDirection
 }
 
-var _ Statement = (*OrderByStatement)(nil)
-
-func (s *OrderByStatement) statementNode()       {}
 func (s *OrderByStatement) TokenLiteral() string { return s.Token.Literal }
 
 // Identifier represents a single identifier (property name, keyword, etc.).

@@ -3,7 +3,7 @@ module github.com/goatquery/goatquery-go/module/gorm
 go 1.26
 
 require (
-	github.com/goatquery/goatquery-go v0.5.0
+	github.com/goatquery/goatquery-go v1.0.0-rc.01
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.42.0

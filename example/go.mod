@@ -4,8 +4,8 @@ go 1.26
 
 require (
 	github.com/brianvoe/gofakeit/v7 v7.14.1
-	github.com/goatquery/goatquery-go v0.5.0
-	github.com/goatquery/goatquery-go/module/gorm v0.0.0
+	github.com/goatquery/goatquery-go v1.0.0-rc.1
+	github.com/goatquery/goatquery-go/module/gorm v1.0.0-rc.1
 	github.com/google/uuid v1.6.0
 	github.com/testcontainers/testcontainers-go v0.42.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.42.0

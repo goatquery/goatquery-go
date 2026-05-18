@@ -15,6 +15,10 @@ for dir in $(./scripts/moduledirs.sh); do
     (cd "${dir}" && go mod edit -require "${MODULE}@v${VERSION}")
 done
 
+# Update example project
+(cd ./example && go mod edit -require "${MODULE}@v${VERSION}")
+(cd ./example && go mod edit -require "${MODULE}/module/gorm@v${VERSION}")
+
 git add .
 git commit -m "chore: Prepare release v${VERSION}"
 git push origin "${BRANCH}"

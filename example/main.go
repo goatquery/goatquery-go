@@ -106,7 +106,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer pgContainer.Terminate(ctx)
+	defer func() { _ = pgContainer.Terminate(ctx) }()
 
 	connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
@@ -121,7 +121,9 @@ func main() {
 	}
 
 	// Migrate
-	db.AutoMigrate(&Company{}, &City{}, &Product{}, &User{}, &Address{}, &Order{}, &OrderItem{})
+	if err := db.AutoMigrate(&Company{}, &City{}, &Product{}, &User{}, &Address{}, &Order{}, &OrderItem{}); err != nil {
+		log.Fatal(err)
+	}
 
 	// Seed if empty
 	var userCount int64
@@ -243,13 +245,13 @@ func parseQuery(r *http.Request) goatquery.Query {
 
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": msg})
 }
 
 // --- Seed data ---

@@ -9,6 +9,7 @@ vet:
 
 lint:
 	golangci-lint run ./...
+	cd ./example && golangci-lint run ./...
 	@for dir in $$(./scripts/moduledirs.sh); do (cd "$$dir" && golangci-lint run ./...) || exit $$?; done
 
 build:

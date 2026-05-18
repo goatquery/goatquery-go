@@ -987,14 +987,14 @@ func Test_FilterNestedPropertyDeep(t *testing.T) {
 		input    string
 		expected int
 	}{
-		{"manager/age gt 28", "manager/age gt 28", 2},                             // User03, User04 have manager User02 (age 30)
-		{"manager/isEmailVerified eq true", "manager/isEmailVerified eq true", 1}, // User02 has manager User01 (verified=true)
-		{"nested company/name eq", "company/name eq 'DataSoft'", 1},               // User02
-		{"nested company/name contains", "company/name contains 'Tech'", 2},       // User01 (TechCorp), User03 (Tech Solutions)
-		{"manager/manager depth 2", "manager/manager/firstname eq 'User01'", 2},   // User03, User04 → manager User02 → manager User01
-		{"manager/manager/age", "manager/manager/age eq 25", 2},                   // User03, User04 → User02 → User01 (age 25)
-		{"manager/manager eq null", "manager/manager eq null", 3},                 // User01, User05 (no manager), User02 (manager=User01 who has no manager)
-		{"combined nested and scalar", "manager/manager eq null and firstname eq 'User01'", 1}, // User01 has no manager
+		{"manager/age gt 28", "manager/age gt 28", 2},                                           // User03, User04 have manager User02 (age 30)
+		{"manager/isEmailVerified eq true", "manager/isEmailVerified eq true", 1},               // User02 has manager User01 (verified=true)
+		{"nested company/name eq", "company/name eq 'DataSoft'", 1},                             // User02
+		{"nested company/name contains", "company/name contains 'Tech'", 2},                     // User01 (TechCorp), User03 (Tech Solutions)
+		{"manager/manager depth 2", "manager/manager/firstname eq 'User01'", 2},                 // User03, User04 → manager User02 → manager User01
+		{"manager/manager/age", "manager/manager/age eq 25", 2},                                 // User03, User04 → User02 → User01 (age 25)
+		{"manager/manager eq null", "manager/manager eq null", 3},                               // User01, User05 (no manager), User02 (manager=User01 who has no manager)
+		{"combined nested and scalar", "manager/manager eq null and firstname eq 'User01'", 1},  // User01 has no manager
 		{"combined manager eq null and scalar", "manager eq null and firstname eq 'User01'", 1}, // User01 has no manager
 	}
 

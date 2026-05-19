@@ -10,7 +10,7 @@ VERSION="${1:?Usage: $0 <version>}"
 TAGS="v${VERSION}"
 
 for dir in $(./scripts/moduledirs.sh); do
-    TAGS="${TAGS} ${dir}/v${VERSION}"
+    TAGS="${TAGS} ${dir#./}/v${VERSION}"
 done
 
 echo "Creating tags:"
